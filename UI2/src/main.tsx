@@ -1,4 +1,5 @@
-import "./style.scss";
+import "./main.scss";
+import "./scrollbarHover";
 import TitleBar from "./TitleBar";
 import ContentBox from "./ContentBox";
 import StatusBar from "./StatusBar";

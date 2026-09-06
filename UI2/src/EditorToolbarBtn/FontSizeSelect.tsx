@@ -1,3 +1,5 @@
+import DropBox, { type DropBoxOption } from "./Ctrl/DropBox";
+
 const DEFAULT_FONT_SIZE = "15pt";
 
 const FONT_SIZES = [
@@ -19,13 +21,8 @@ const FONT_SIZES = [
   "72pt",
 ];
 
+const SIZE_OPTIONS: DropBoxOption[] = FONT_SIZES.map((size) => ({ value: size }));
+
 export default function FontSizeSelect() {
-  return (
-    <select class="toolSelect" title="字号">
-      <option value="">{DEFAULT_FONT_SIZE}</option>
-      {FONT_SIZES.map((size) => (
-        <option value={size}>{size}</option>
-      ))}
-    </select>
-  );
+  return <DropBox title="字号" options={SIZE_OPTIONS} value={DEFAULT_FONT_SIZE} />;
 }

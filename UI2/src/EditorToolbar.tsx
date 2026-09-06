@@ -1,9 +1,5 @@
 import "./EditorToolbar.scss";
-import AlignCenterButton from "./EditorToolbarBtn/AlignCenterButton";
-import AlignJustifyButton from "./EditorToolbarBtn/AlignJustifyButton";
-import AlignLeftButton from "./EditorToolbarBtn/AlignLeftButton";
-import AlignMiddleButton from "./EditorToolbarBtn/AlignMiddleButton";
-import AlignRightButton from "./EditorToolbarBtn/AlignRightButton";
+import AlignSelect from "./EditorToolbarBtn/AlignSelect";
 import BackgroundColorButton from "./EditorToolbarBtn/BackgroundColorButton";
 import BoldButton from "./EditorToolbarBtn/BoldButton";
 import BulletButton from "./EditorToolbarBtn/BulletButton";
@@ -31,25 +27,19 @@ export default function EditorToolbar() {
       <UndoButton />
       <RedoButton />
       <div class="toolDivider" />
+      <FontFamilySelect />
+      <FontSizeSelect />
       <BoldButton />
       <ItalicButton />
       <UnderlineButton />
       <StrikethroughButton />
+      <TextColorButton />
+      <BackgroundColorButton />
       <ClearFormatButton />
-      <div class="toolDivider" />
       <SubscriptButton />
       <SuperscriptButton />
       <div class="toolDivider" />
-      <FontFamilySelect />
-      <FontSizeSelect />
-      <div class="toolDivider" />
-      <TextColorButton />
-      <BackgroundColorButton />
-      <div class="toolDivider" />
-      <AlignLeftButton />
-      <AlignCenterButton />
-      <AlignRightButton />
-      <AlignJustifyButton />
+      <AlignSelect />
       <div class="toolDivider" />
       <BulletButton />
       <NumberingButton />
@@ -60,7 +50,6 @@ export default function EditorToolbar() {
       <div class="toolDivider" />
       <LinkButton />
       <UnlinkButton />
-      <AlignMiddleButton />
       <div class="toolDivider" />
     </div>
   );

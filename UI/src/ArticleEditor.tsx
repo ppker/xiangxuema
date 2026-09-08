@@ -1,39 +1,25 @@
 import "./ArticleEditor.scss";
-import { createSignal, onCleanup, onSettled } from "solid-js";
-import { WatermarkPlugin } from "roosterjs";
 import { Editor } from "roosterjs-content-model-core";
-import type { IEditor } from "roosterjs";
+import { WatermarkPlugin } from "roosterjs";
 import EditorToolbar from "./EditorToolbar";
-
-const DEFAULT_FONT = "微软雅黑";
-const DEFAULT_FONT_SIZE = "15px";
-
+import msg from "./msg";
 export default function ArticleEditor() {
-  let contentDiv: HTMLDivElement | undefined;
-  let initialized = false;
-  const [getEditor, setEditor] = createSignal<IEditor | undefined>();
-
-  onSettled(() => {
-    if (initialized || !contentDiv) return;
-    initialized = true;
-    const editor = new Editor(contentDiv, {
+  msg.once("ready", () => {
+    const contentDiv = document.querySelector<HTMLDivElement>("#articleContent")!;
+    // 编辑器实例暂时不参与业务，先不保存引用；工具栏业务逻辑加回时再把实例提供给按钮
+    new Editor(contentDiv, {
       plugins: [new WatermarkPlugin("请输入文章内容…")],
       defaultSegmentFormat: {
-        fontFamily: DEFAULT_FONT,
-        fontSize: DEFAULT_FONT_SIZE,
+        fontFamily: "微软雅黑",
+        fontSize: "15px",
       },
     });
-    setEditor(editor);
-  });
-
-  onCleanup(() => {
-    getEditor()?.dispose();
   });
 
   return (
     <div id="articleEditor">
-      <EditorToolbar getEditor={getEditor} />
-      <div id="articleContent" ref={(el) => (contentDiv = el)}></div>
+      <EditorToolbar />
+      <div id="articleContent"></div>
     </div>
   );
 }

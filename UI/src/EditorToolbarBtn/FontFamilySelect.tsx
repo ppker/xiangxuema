@@ -1,11 +1,7 @@
-import { For } from "solid-js";
-import { setFontName } from "roosterjs";
-import { useToolbar } from "./ToolbarContext";
+import DropBox, { type DropBoxOption } from "./Ctrl/DropBox";
 
-/** 编辑器默认字体 */
 const DEFAULT_FONT = "微软雅黑";
 
-/** 字体下拉框候选列表 */
 const FONT_NAMES = [
   "Arial",
   "Arial Black",
@@ -28,27 +24,13 @@ const FONT_NAMES = [
   "仿宋",
 ];
 
+// 多词字体名加引号，保证 font-family 正确解析；同时用作下拉里字体效果预览
+const FONT_OPTIONS: DropBoxOption[] = FONT_NAMES.map((name) => ({
+  value: name,
+  label: name,
+  font: `"${name}", sans-serif`,
+}));
+
 export default function FontFamilySelect() {
-  const { format, run } = useToolbar();
-  const font = format();
-  const value =
-    font.fontName && FONT_NAMES.includes(font.fontName)
-      ? font.fontName
-      : DEFAULT_FONT;
-  return (
-    <select
-      class="toolSelect"
-      title="字体"
-      value={value}
-      onChange={(e) => {
-        const v = e.currentTarget.value;
-        if (v) run((ed) => setFontName(ed, v));
-      }}
-    >
-      <option value="">{DEFAULT_FONT}</option>
-      <For each={FONT_NAMES}>
-        {(name) => <option value={name}>{name}</option>}
-      </For>
-    </select>
-  );
+  return <DropBox title="字体" options={FONT_OPTIONS} value={DEFAULT_FONT} />;
 }

@@ -1,25 +1,17 @@
-import { createContext, useContext } from "solid-js";
-import type { ContentModelFormatState, IEditor } from "roosterjs";
-
 /**
- * 工具栏公共上下文：向各按钮子组件共享编辑器、当前格式状态与统一的执行入口。
- * 相当于按钮组件的公共基类，SolidJS 中使用 Context 而非 class 继承。
+ * 工具栏公共上下文（暂移除）
  *
- * SolidJS 2.0 中 createContext 返回的 Context 本身就是 Provider 组件，
- * 用法：<ToolbarContext value={...}>...</ToolbarContext>
+ * 原实现基于 solid-js 的 createContext / useContext，为各按钮组件提供
+ * 编辑器实例、当前格式状态与统一执行入口（参照 UI 工程的同名文件）。
+ * UI2 使用自研无框架 JSX 运行时，未安装 solid-js，且各按钮业务逻辑已暂时
+ * 移除，因此本文件不再提供运行时实现，仅保留类型约定，待业务逻辑逐个
+ * 加回时再补充等价方案。
  */
 export interface ToolbarContextValue {
   /** 获取当前编辑器实例 */
-  getEditor: () => IEditor | undefined;
+  getEditor: () => unknown;
   /** 获取（响应式）当前格式状态 */
-  format: () => ContentModelFormatState;
+  format: () => unknown;
   /** 统一执行入口：聚焦编辑器 → 执行动作 → 刷新格式状态 */
-  run: (action: (editor: IEditor) => void) => void;
-}
-
-export const ToolbarContext = createContext<ToolbarContextValue>();
-
-/** 子组件获取公共上下文的 hook；无 Provider 时 SolidJS 2.0 会直接抛出 ContextNotFoundError */
-export function useToolbar(): ToolbarContextValue {
-  return useContext(ToolbarContext);
+  run: (action: (editor: unknown) => void) => void;
 }

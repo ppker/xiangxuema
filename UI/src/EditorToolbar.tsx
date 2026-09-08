@@ -1,13 +1,5 @@
 import "./EditorToolbar.scss";
-import { createEffect, createSignal } from "solid-js";
-import { getFormatState } from "roosterjs";
-import type { ContentModelFormatState, IEditor } from "roosterjs";
-import { ToolbarContext } from "./EditorToolbarBtn/ToolbarContext";
-import AlignCenterButton from "./EditorToolbarBtn/AlignCenterButton";
-import AlignJustifyButton from "./EditorToolbarBtn/AlignJustifyButton";
-import AlignLeftButton from "./EditorToolbarBtn/AlignLeftButton";
-import AlignMiddleButton from "./EditorToolbarBtn/AlignMiddleButton";
-import AlignRightButton from "./EditorToolbarBtn/AlignRightButton";
+import AlignSelect from "./EditorToolbarBtn/AlignSelect";
 import BackgroundColorButton from "./EditorToolbarBtn/BackgroundColorButton";
 import BoldButton from "./EditorToolbarBtn/BoldButton";
 import BulletButton from "./EditorToolbarBtn/BulletButton";
@@ -29,82 +21,36 @@ import UnderlineButton from "./EditorToolbarBtn/UnderlineButton";
 import UndoButton from "./EditorToolbarBtn/UndoButton";
 import UnlinkButton from "./EditorToolbarBtn/UnlinkButton";
 
-export default function EditorToolbar(props: {
-  getEditor: () => IEditor | undefined;
-}) {
-  const [format, setFormat] = createSignal<ContentModelFormatState>({});
-
-  createEffect(
-    () => props.getEditor(),
-    (editor) => {
-      if (!editor) return;
-
-      const refresh = () => {
-        if (!editor.isDisposed()) setFormat(getFormatState(editor));
-      };
-      const dispose = editor.attachDomEvent({
-        selectionchange: { beforeDispatch: refresh },
-        keyup: { beforeDispatch: refresh },
-        click: { beforeDispatch: refresh },
-        input: { beforeDispatch: refresh },
-      });
-      refresh();
-      return dispose;
-    },
-  );
-
-  const run = (action: (editor: IEditor) => void) => {
-    const editor = props.getEditor();
-    if (!editor || editor.isDisposed()) return;
-    editor.focus();
-    action(editor);
-    setFormat(getFormatState(editor));
-  };
-
+export default function EditorToolbar() {
   return (
     <div id="editorToolbar">
-      <ToolbarContext
-        value={{
-          getEditor: props.getEditor,
-          format,
-          run,
-        }}
-      >
-        <UndoButton />
-        <RedoButton />
-        <div class="toolDivider" />
-        <BoldButton />
-        <ItalicButton />
-        <UnderlineButton />
-        <StrikethroughButton />
-        <ClearFormatButton />
-        <div class="toolDivider" />
-        <SubscriptButton />
-        <SuperscriptButton />
-        <div class="toolDivider" />
-        <FontFamilySelect />
-        <FontSizeSelect />
-        <div class="toolDivider" />
-        <TextColorButton />
-        <BackgroundColorButton />
-        <div class="toolDivider" />
-        <AlignLeftButton />
-        <AlignCenterButton />
-        <AlignRightButton />
-        <AlignJustifyButton />
-        <div class="toolDivider" />
-        <BulletButton />
-        <NumberingButton />
-        <QuoteButton />
-        <div class="toolDivider" />
-        <CodeButton />
-        <CodeBlockButton />
-        <div class="toolDivider" />
-        <LinkButton />
-        <UnlinkButton />
-        <AlignMiddleButton />
-        <div class="toolDivider" />
-      </ToolbarContext>
+      <UndoButton />
+      <RedoButton />
+      <div class="toolDivider" />
+      <FontFamilySelect />
+      <FontSizeSelect />
+      <BoldButton />
+      <ItalicButton />
+      <UnderlineButton />
+      <StrikethroughButton />
+      <TextColorButton />
+      <BackgroundColorButton />
+      <ClearFormatButton />
+      <SubscriptButton />
+      <SuperscriptButton />
+      <div class="toolDivider" />
+      <AlignSelect />
+      <div class="toolDivider" />
+      <BulletButton />
+      <NumberingButton />
+      <QuoteButton />
+      <div class="toolDivider" />
+      <CodeButton />
+      <CodeBlockButton />
+      <div class="toolDivider" />
+      <LinkButton />
+      <UnlinkButton />
+      <div class="toolDivider" />
     </div>
   );
 }

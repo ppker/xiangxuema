@@ -1,10 +1,7 @@
-import { For } from "solid-js";
-import { setFontSize } from "roosterjs";
-import { useToolbar } from "./ToolbarContext";
+import DropBox, { type DropBoxOption } from "./Ctrl/DropBox";
 
 const DEFAULT_FONT_SIZE = "15pt";
 
-/** 字号下拉框候选列表 */
 const FONT_SIZES = [
   "9pt",
   "10pt",
@@ -24,27 +21,8 @@ const FONT_SIZES = [
   "72pt",
 ];
 
+const SIZE_OPTIONS: DropBoxOption[] = FONT_SIZES.map((size) => ({ value: size }));
+
 export default function FontSizeSelect() {
-  const { format, run } = useToolbar();
-  const font = format();
-  const value =
-    font.fontSize && FONT_SIZES.includes(font.fontSize)
-      ? font.fontSize
-      : DEFAULT_FONT_SIZE;
-  return (
-    <select
-      class="toolSelect"
-      title="字号"
-      value={value}
-      onChange={(e) => {
-        const v = e.currentTarget.value;
-        if (v) run((ed) => setFontSize(ed, v));
-      }}
-    >
-      <option value="">{DEFAULT_FONT_SIZE}</option>
-      <For each={FONT_SIZES}>
-        {(size) => <option value={size}>{size}</option>}
-      </For>
-    </select>
-  );
+  return <DropBox title="字号" options={SIZE_OPTIONS} value={DEFAULT_FONT_SIZE} />;
 }

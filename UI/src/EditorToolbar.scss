@@ -54,32 +54,14 @@
     }
   }
 
-  .toolSelect {
-    height: 26px;
-    max-width: 84px;
-    padding: 0 4px;
-    border: 1px solid transparent;
-    border-radius: 4px;
-    background: transparent;
-    color: #555555;
-    font-size: 12px;
-    cursor: pointer;
-    outline: none;
-
-    &:hover {
-      background: #e8ecf4;
-    }
-
-    &:focus {
-      border-color: #d3e3fd;
-    }
-  }
-
   .toolDivider {
-    width: 1px;
+    flex: none;
     height: 18px;
     margin: 0 6px;
-    background: #d8dde6;
+    box-sizing: border-box;
+    display: inline-block;
+    width: 0;
+    border-left: 1px solid #c8cdd6;
   }
 
   .colorBtn {

@@ -1,0 +1,42 @@
+#editorBar {
+  flex-shrink: 0;
+  height: 30px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border-bottom: 1px solid #e5e6eb;
+  border-top: 1px solid #e5e6eb;
+  background: #fafafa;
+  user-select: none;
+}
+
+#editorBar .toolBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: #555555;
+  cursor: pointer;
+}
+
+#editorBar .toolBtn:hover {
+  background: #e8ecf4;
+}
+
+#editorBar .toolBtn svg {
+  width: 16px;
+  height: 16px;
+  fill: currentColor;
+}
+
+#editorBar .divider {
+  flex: none;
+  width: 0;
+  height: 18px;
+  border-left: 1px solid #c8cdd6;
+}

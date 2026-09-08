@@ -1,4 +1,4 @@
-class Msg {
+class MSG {
   private cache: Map<String, any> = new Map();
   constructor() {
     /*@ts-ignore*/
@@ -67,4 +67,4 @@ class Msg {
   }
 }
 
-export default new Msg();
+export default new MSG();

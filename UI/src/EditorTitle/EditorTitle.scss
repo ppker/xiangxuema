@@ -1,0 +1,22 @@
+#editorTitle {
+  flex-shrink: 0;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  background: #ffffff;
+}
+
+#articleTitleInput {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: none;
+  outline: none;
+  font-size: 14px;
+  color: #1d2129;
+  background: transparent;
+}
+
+#articleTitleInput::placeholder {
+  color: #a9aeb8;
+}

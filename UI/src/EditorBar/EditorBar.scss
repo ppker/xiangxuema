@@ -28,6 +28,16 @@
   background: #e8ecf4;
 }
 
+#editorBar .toolBtn:disabled {
+  opacity: 0.35;
+  cursor: default;
+  background: transparent;
+}
+
+#editorBar .toolBtn.active {
+  color: #0069cc;
+}
+
 #editorBar .toolBtn svg {
   width: 16px;
   height: 16px;
@@ -39,4 +49,74 @@
   width: 0;
   height: 18px;
   border-left: 1px solid #c8cdd6;
+}
+
+/* 字体按钮：显示当前字体，可点开下拉 */
+#editorBar .toolBtn.fontBtn {
+  width: auto;
+  min-width: 96px;
+  gap: 4px;
+  padding: 0 8px;
+  justify-content: flex-start;
+  font-size: 12px;
+}
+
+#editorBar .toolBtn.fontBtn .fontName {
+  flex: 1;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#editorBar .toolBtn.fontBtn .caret {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  opacity: 0.6;
+}
+
+/* 字体下拉列表（展开时动态构建挂到 body，关闭即移除） */
+.fontDropdown {
+  position: fixed;
+  min-width: 150px;
+  padding: 0px;
+  z-index: 1000;
+  background: #fff;
+  border: 1px solid #e5e6eb;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  font-size: 13px;
+}
+
+.fontItem {
+  display: flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 10px;
+  cursor: pointer;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.fontItem:hover {
+  background: #e8ecf4;
+}
+
+.fontItem.selected {
+  color: #0069cc;
+}
+
+/* 字号按钮：比字体按钮窄 */
+#editorBar .toolBtn.fontBtn.sizeBtn {
+  min-width: 64px;
+}
+
+/* 字号下拉：只放数字+px，整体更窄且条目居中 */
+.fontDropdown.sizeDropdown {
+  min-width: 80px;
+}
+
+.fontDropdown.sizeDropdown .fontItem {
+  justify-content: center;
 }

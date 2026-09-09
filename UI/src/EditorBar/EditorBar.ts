@@ -3,6 +3,8 @@ import html from "./EditorBar.html?raw";
 import CtrlBase from "../CtrlBase";
 import Undo from "./Undo/Undo";
 import Redo from "./Redo/Redo";
+import FontFamily from "./FontFamily/FontFamily";
+import FontSize from "./FontSize/FontSize";
 import Bold from "./Bold/Bold";
 
 /**
@@ -19,6 +21,8 @@ class EditorBar extends CtrlBase {
     Undo.appendTo(this.dom);
     Redo.appendTo(this.dom);
     this.appendDivider();
+    FontFamily.appendTo(this.dom);
+    FontSize.appendTo(this.dom);
     Bold.appendTo(this.dom);
   }
 

@@ -2,6 +2,7 @@ import html from "./Bold.html?raw";
 import CtrlBase from "../../CtrlBase";
 import { toggleBold } from "roosterjs-content-model-api";
 import EditorContent from "../../EditorContent/EditorContent";
+import Msg from "../../Msg";
 
 class Bold extends CtrlBase {
   constructor() {
@@ -11,6 +12,9 @@ class Bold extends CtrlBase {
   override ready(): void {
     this.dom.addEventListener("click", () => {
       toggleBold(EditorContent.editor);
+    });
+    Msg.on("editorState", (state) => {
+      this.dom.classList.toggle("active", state.isBold === true);
     });
   }
 }

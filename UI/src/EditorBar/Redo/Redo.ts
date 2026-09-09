@@ -2,6 +2,7 @@ import html from "./Redo.html?raw";
 import CtrlBase from "../../CtrlBase";
 import { redo } from "roosterjs-content-model-core";
 import EditorContent from "../../EditorContent/EditorContent";
+import Msg from "../../Msg";
 
 class Redo extends CtrlBase {
   constructor() {
@@ -11,6 +12,9 @@ class Redo extends CtrlBase {
   override ready(): void {
     this.dom.addEventListener("click", () => {
       redo(EditorContent.editor);
+    });
+    Msg.on("editorState", (state) => {
+      (this.dom as HTMLButtonElement).disabled = !state.canRedo;
     });
   }
 }

@@ -4,6 +4,7 @@ import CtrlBase from "../CtrlBase";
 import { Editor } from "roosterjs-content-model-core";
 import { WatermarkPlugin } from "roosterjs";
 import EditorPlugin from "./EditorPlugin";
+import QuoteKeyboardPlugin from "./QuoteKeyboardPlugin";
 
 class EditorContent extends CtrlBase {
   editor: Editor | null = null;
@@ -14,7 +15,11 @@ class EditorContent extends CtrlBase {
 
   override ready(): void {
     this.editor = new Editor(this.dom as HTMLDivElement, {
-      plugins: [new WatermarkPlugin("请输入文章内容…"), new EditorPlugin()],
+      plugins: [
+        new WatermarkPlugin("请输入文章内容…"),
+        new EditorPlugin(),
+        new QuoteKeyboardPlugin(),
+      ],
       defaultSegmentFormat: {
         fontFamily: "微软雅黑",
         fontSize: "15px",

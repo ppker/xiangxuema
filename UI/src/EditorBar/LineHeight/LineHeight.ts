@@ -17,7 +17,7 @@ const DEFAULT_LINE_HEIGHT = "1.5";
  * 按钮为图标 + 箭头，点开展开挂到 body 的下拉；下拉项为固定倍数，选择后应用并回显选中态。
  */
 class LineHeight extends CtrlBase {
-  /** 当前行高（"1"/"1.5"/…）；初始为默认档位，即下拉默认选中 "1.5" */
+  /** 当前行高档位（"1"/"1.5"/…）；初始为默认档位，即下拉默认选中 "1.5" */
   private current = DEFAULT_LINE_HEIGHT;
   private popup: HTMLDivElement | null = null;
 
@@ -28,15 +28,46 @@ class LineHeight extends CtrlBase {
   override ready(): void {
     this.dom.querySelector(".toolIcon")!.innerHTML = lineHeightSvg;
     this.dom.addEventListener("click", () => (this.popup ? this.close() : this.open()));
-    Msg.on("editorState", (state) => this.render(state.lineHeight));
+    Msg.on("editorState", (state) => this.render(state.lineHeight, state.fontSize));
   }
 
-  /** 记录当前行高。
-   * 下拉档位语义为相对字号的倍数（无单位 line-height）；编辑器正文默认行高为 1.5，
-   * 因此无显式行高（继承默认）的段落点亮 "1.5"；只认选项里的值，其它（如粘贴来的 "18px"）不点亮选中态。 */
-  private render(lineHeight?: string): void {
-    const value = (lineHeight ?? "").trim();
-    this.current = value ? (LINE_HEIGHTS.includes(value) ? value : "") : DEFAULT_LINE_HEIGHT;
+  /**
+   * 记录当前行高档位。
+   * roosterjs 上报的 lineHeight 是浏览器折算后的绝对值（如 15px 字号下的默认行高为 "22.5px"），
+   * 因此需除以当前字号 fontSize 换算回"相对字号的倍数"再匹配档位；
+   * 若拿不到可解析的行高（空文档/未聚焦），按默认档位 1.5 回显。
+   */
+  private render(lineHeight?: string, fontSize?: string): void {
+    const linePx = this.toPx(lineHeight);
+    const fontPx = this.toPx(fontSize);
+    if (linePx <= 0) {
+      this.current = DEFAULT_LINE_HEIGHT;
+      return;
+    }
+    if (fontPx <= 0) {
+      this.current = "";
+      return;
+    }
+
+    const factor = linePx / fontPx;
+    // 匹配最接近的档位；容差 0.1（换算可能出现极小的浮点/取整误差），其它值不点亮选中态
+    let closest: string | null = null;
+    for (const item of LINE_HEIGHTS) {
+      const diff = Math.abs(parseFloat(item) - factor);
+      if (closest === null || diff < Math.abs(parseFloat(closest) - factor)) {
+        closest = item;
+      }
+    }
+    this.current = closest && Math.abs(parseFloat(closest) - factor) < 0.1 ? closest : "";
+  }
+
+  /** 长度转 px：pt→px = ×4/3（与 FontSize.ts 一致）；非长度值返回 0 */
+  private toPx(length: string | undefined): number {
+    const m = /^(\d+(?:\.\d+)?)\s*(px|pt)$/i.exec((length ?? "").trim());
+    if (!m) {
+      return 0;
+    }
+    return m[2].toLowerCase() === "px" ? parseFloat(m[1]) : (parseFloat(m[1]) * 4) / 3;
   }
 
   private open(): void {
@@ -79,7 +110,8 @@ class LineHeight extends CtrlBase {
         },
         { apiName: "setLineHeight" },
       );
-      this.render(item.textContent);
+      // 应用的是下拉档位本身，直接作为选中态（后续 editorState 会按 px 换算回同一档位）
+      this.current = item.textContent;
       this.close();
     }
   };

@@ -130,7 +130,8 @@
   /* 对齐下拉：只显示图标，面板自适应收窄 */
   &.alignDropdown {
     min-width: auto;
-    padding: 4px;
+    /* 与其他下拉一致：无容器内边距，项的 hover/选中背景横向贯通、顶部不留白 */
+    padding: 0;
   }
 
   .fontItem {
@@ -153,14 +154,14 @@
     }
   }
 
-  /* 对齐下拉项：只显示图标，说明在图标 title 上 */
+  /* 对齐下拉项：只显示图标，说明在图标 title 上。
+     高度/内边距与 .fontItem 对齐：无圆角、无内部留白，hover 与选中背景横向贯通 */
   .alignItem {
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 26px;
-    padding: 0 6px;
-    border-radius: 4px;
+    height: 28px;
+    padding: 0 10px;
     cursor: pointer;
 
     &:hover {

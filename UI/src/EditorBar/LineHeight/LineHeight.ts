@@ -5,38 +5,20 @@ import { getSelectedParagraphs } from "roosterjs-content-model-dom";
 import EditorContent from "../../EditorContent/EditorContent";
 import Msg from "../../Msg";
 
-/** 可选的行高倍数，展示顺序即列表顺序 */
-const LINE_HEIGHTS = ["1", "1.5", "2", "2.5"];
+/** 可选的行高倍数（相对字号，CSS 无单位 line-height），展示顺序即列表顺序 */
+const LINE_HEIGHTS = ["1", "1.5", "2", "2.5", "3"];
 
-/**
- * roosterjs 没有现成的 setLineHeight，这里走 formatContentModel：
- * 直接给所有选中段落的 format.lineHeight 赋值（挂到段落 CSS line-height，随文档保存）。
- */
-function setLineHeight(lineHeight: string): void {
-  const editor = EditorContent.editor;
-  editor.focus();
-  editor.formatContentModel(
-    (model) => {
-      const paragraphs = getSelectedParagraphs(model, true);
-      if (paragraphs.length === 0) {
-        return false;
-      }
-      paragraphs.forEach((paragraph) => {
-        paragraph.format.lineHeight = lineHeight;
-      });
-      return true;
-    },
-    { apiName: "setLineHeight" },
-  );
-}
+/** 编辑器正文默认行高：需与 EditorContent.scss 中 #editorContent 的 line-height 保持一致。
+ *  段落未显式设置行高时继承该默认值，回显视为选中档位 "1.5"。 */
+const DEFAULT_LINE_HEIGHT = "1.5";
 
 /**
  * 行高下拉（模块单例）。
  * 按钮为图标 + 箭头，点开展开挂到 body 的下拉；下拉项为固定倍数，选择后应用并回显选中态。
  */
 class LineHeight extends CtrlBase {
-  /** 当前行高（"1"/"1.5"/…），空串表示编辑器未给出选项中的值 */
-  private current = "";
+  /** 当前行高（"1"/"1.5"/…）；初始为默认档位，即下拉默认选中 "1.5" */
+  private current = DEFAULT_LINE_HEIGHT;
   private popup: HTMLDivElement | null = null;
 
   constructor() {
@@ -49,10 +31,12 @@ class LineHeight extends CtrlBase {
     Msg.on("editorState", (state) => this.render(state.lineHeight));
   }
 
-  /** 记录当前行高：只认选项里的值，其它（如粘贴来的 "18px"）不点亮选中态 */
-  private render(lineHeight: string): void {
+  /** 记录当前行高。
+   * 下拉档位语义为相对字号的倍数（无单位 line-height）；编辑器正文默认行高为 1.5，
+   * 因此无显式行高（继承默认）的段落点亮 "1.5"；只认选项里的值，其它（如粘贴来的 "18px"）不点亮选中态。 */
+  private render(lineHeight?: string): void {
     const value = (lineHeight ?? "").trim();
-    this.current = LINE_HEIGHTS.includes(value) ? value : "";
+    this.current = value ? (LINE_HEIGHTS.includes(value) ? value : "") : DEFAULT_LINE_HEIGHT;
   }
 
   private open(): void {
@@ -80,7 +64,21 @@ class LineHeight extends CtrlBase {
   private onItemClick = (e: MouseEvent) => {
     const item = (e.target as HTMLElement).closest(".fontItem") as HTMLElement | null;
     if (item?.textContent) {
-      setLineHeight(item.textContent);
+      const editor = EditorContent.editor;
+      editor.focus();
+      editor.formatContentModel(
+        (model) => {
+          const paragraphs = getSelectedParagraphs(model, true);
+          if (paragraphs.length === 0) {
+            return false;
+          }
+          paragraphs.forEach((paragraph) => {
+            paragraph.format.lineHeight = item.textContent;
+          });
+          return true;
+        },
+        { apiName: "setLineHeight" },
+      );
       this.render(item.textContent);
       this.close();
     }

@@ -6,7 +6,8 @@
   padding: 8px 16px;
   font-size: 15px;
   font-family: 微软雅黑, "Microsoft YaHei", sans-serif;
-  line-height: 1.6;
+  /* 默认行高 1.5（相对字号），与工具栏行高档位语义一致；需与 LineHeight.ts 的 DEFAULT_LINE_HEIGHT 同步 */
+  line-height: 1.5;
   color: #333333;
   overflow-y: auto;
   cursor: text;

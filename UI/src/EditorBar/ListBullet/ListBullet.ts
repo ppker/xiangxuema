@@ -1,5 +1,5 @@
 import html from "./ListBullet.html?raw";
-import bulletSvg from "../icon/listBullete.svg?raw";
+import bulletSvg from "../icon/listBullet.svg?raw";
 import CtrlBase from "../../CtrlBase";
 import { toggleBullet } from "roosterjs-content-model-api";
 import EditorContent from "../../EditorContent/EditorContent";

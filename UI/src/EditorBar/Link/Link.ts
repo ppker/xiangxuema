@@ -4,7 +4,6 @@ import CtrlBase from "../../CtrlBase";
 import { adjustLinkSelection, insertLink } from "roosterjs-content-model-api";
 import EditorContent from "../../EditorContent/EditorContent";
 import Msg from "../../Msg";
-import { detectLinkState } from "../../EditorContent/linkState";
 import type { LinkState } from "../../EditorContent/linkState";
 
 /**
@@ -41,12 +40,9 @@ class Link extends CtrlBase {
   }
 
   private open(): void {
-    const editor = EditorContent.editor;
-    if (!editor) {
-      return;
-    }
-    // 展开时以编辑器实时状态为准，预填已有链接地址（打开即选中方便直接改写）
-    const state = detectLinkState(editor);
+    // 按钮仅在可选时可用（disabled 由 editorState 维护的 lastState 把关），
+    // 直接复用最近一次状态预填已有链接地址（打开即选中方便直接改写）
+    const state = this.lastState;
     if (!state.hasTextSelection && !state.inLink) {
       return;
     }

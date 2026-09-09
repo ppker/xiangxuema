@@ -40,8 +40,9 @@ class Quote extends CtrlBase {
     this.dom.addEventListener("click", () => {
       toggleBlockQuote(EditorContent.editor, QUOTE_FORMAT);
     });
+    // roosterjs 原生 isBlockQuote：光标所在段落/选区全部处于引用块时点亮
     Msg.on("editorState", (state) => {
-      this.dom.classList.toggle("active", state.inQuote === true);
+      this.dom.classList.toggle("active", state.isBlockQuote === true);
     });
   }
 }

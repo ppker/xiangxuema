@@ -1,4 +1,5 @@
 import html from "./Undo.html?raw";
+import undoSvg from "../icon/undo.svg?raw";
 import CtrlBase from "../../CtrlBase";
 import { undo } from "roosterjs-content-model-core";
 import EditorContent from "../../EditorContent/EditorContent";
@@ -10,6 +11,7 @@ class Undo extends CtrlBase {
   }
 
   override ready(): void {
+    this.dom.querySelector(".toolIcon")!.innerHTML = undoSvg;
     this.dom.addEventListener("click", () => {
       undo(EditorContent.editor);
     });

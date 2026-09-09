@@ -1,4 +1,5 @@
 import html from "./Redo.html?raw";
+import redoSvg from "../icon/redo.svg?raw";
 import CtrlBase from "../../CtrlBase";
 import { redo } from "roosterjs-content-model-core";
 import EditorContent from "../../EditorContent/EditorContent";
@@ -10,6 +11,7 @@ class Redo extends CtrlBase {
   }
 
   override ready(): void {
+    this.dom.querySelector(".toolIcon")!.innerHTML = redoSvg;
     this.dom.addEventListener("click", () => {
       redo(EditorContent.editor);
     });

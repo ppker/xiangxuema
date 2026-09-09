@@ -1,4 +1,5 @@
 import html from "./Bold.html?raw";
+import boldSvg from "../icon/bold.svg?raw";
 import CtrlBase from "../../CtrlBase";
 import { toggleBold } from "roosterjs-content-model-api";
 import EditorContent from "../../EditorContent/EditorContent";
@@ -10,6 +11,7 @@ class Bold extends CtrlBase {
   }
 
   override ready(): void {
+    this.dom.querySelector(".toolIcon")!.innerHTML = boldSvg;
     this.dom.addEventListener("click", () => {
       toggleBold(EditorContent.editor);
     });

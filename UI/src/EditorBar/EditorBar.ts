@@ -13,8 +13,12 @@ import TextColor from "./TextColor/TextColor";
 import BackgroundColor from "./BackgroundColor/BackgroundColor";
 import Align from "./Align/Align";
 import LineHeight from "./LineHeight/LineHeight";
+import ListBullet from "./ListBullet/ListBullet";
+import ListNumber from "./ListNumber/ListNumber";
 import Subscript from "./Subscript/Subscript";
 import Superscript from "./Superscript/Superscript";
+import Link from "./Link/Link";
+import LinkRemove from "./LinkRemove/LinkRemove";
 
 /**
  * 编辑器工具栏（模块单例）。
@@ -44,6 +48,13 @@ class EditorBar extends CtrlBase {
     this.appendDivider();
     Align.appendTo(this.dom);
     LineHeight.appendTo(this.dom);
+    this.appendDivider();
+    ListBullet.appendTo(this.dom);
+    ListNumber.appendTo(this.dom);
+    this.appendDivider();
+    Link.appendTo(this.dom);
+    LinkRemove.appendTo(this.dom);
+    this.appendDivider();
   }
 
   /** 追加一条纵向分隔线 */

@@ -3,7 +3,7 @@ import alignLeftSvg from "../icon/alignLeft.svg?raw";
 import alignCenterSvg from "../icon/alignCenter.svg?raw";
 import alignRightSvg from "../icon/alignRight.svg?raw";
 import alignJustifySvg from "../icon/alignJustify.svg?raw";
-import CtrlBase from "../../CtrlBase";
+import DropdownBase from "../../DropdownBase";
 import { setAlignment } from "roosterjs-content-model-api";
 import EditorContent from "../../EditorContent/EditorContent";
 import Msg from "../../Msg";
@@ -25,17 +25,17 @@ function isAlign(value: string): value is AlignValue {
 /**
  * 对齐方式下拉（模块单例）。
  * 按钮显示当前对齐图标，点击展开挂到 body 的下拉；选择后应用并对编辑器状态回显。
+ * 开合/定位/外部关闭逻辑见 DropdownBase。
  */
-class Align extends CtrlBase {
+class Align extends DropdownBase {
   private current: AlignValue = "left";
-  private popup: HTMLDivElement | null = null;
 
   constructor() {
     super(html);
   }
 
   override ready(): void {
-    this.dom.addEventListener("click", () => (this.popup ? this.close() : this.open()));
+    this.dom.addEventListener("click", () => this.toggle());
     Msg.on("editorState", (state) => {
       if (isAlign(state.textAlign)) {
         this.render(state.textAlign);
@@ -53,13 +53,13 @@ class Align extends CtrlBase {
     icon.title = option.label;
   }
 
-  private open(): void {
+  protected buildPopup(): HTMLDivElement {
     const popup = document.createElement("div");
     popup.className = "fontDropdown alignDropdown";
     for (const o of ALIGN_OPTIONS) {
       const item = document.createElement("div");
       item.className = o.value === this.current ? "alignItem selected" : "alignItem";
-      item.dataset.align = o.value;
+      item.dataset.value = o.value;
       const icon = document.createElement("span");
       icon.className = "alignItemIcon";
       icon.title = o.label; // 名称做进图标的 title
@@ -67,42 +67,16 @@ class Align extends CtrlBase {
       item.append(icon);
       popup.appendChild(item);
     }
-    popup.addEventListener("click", this.onItemClick);
-    const rect = this.dom.getBoundingClientRect();
-    const below = rect.bottom + 4;
-    const popupHeight = popup.offsetHeight;
-    popup.style.left = `${rect.left}px`;
-    popup.style.top = below + popupHeight > window.innerHeight ? `${rect.top - popupHeight - 4}px` : `${below}px`;
-    document.addEventListener("mousedown", this.onDocMouseDown);
-    window.addEventListener("blur", this.close);
-    document.body.appendChild(popup);
-    this.popup = popup;
+    return popup;
   }
 
-  /** 事件委托：popup 上只绑一个 click，点中哪项由目标元素定位 */
-  private onItemClick = (e: MouseEvent) => {
-    const item = (e.target as HTMLElement).closest(".alignItem") as HTMLElement | null;
-    if (item && item.dataset.align && isAlign(item.dataset.align)) {
-      setAlignment(EditorContent.editor, item.dataset.align);
-      this.render(item.dataset.align);
+  protected onPicked(value: string): void {
+    if (isAlign(value)) {
+      setAlignment(EditorContent.editor, value);
+      this.render(value);
     }
     this.close();
-  };
-
-  private close(): void {
-    this.popup?.remove();
-    this.popup = null;
-    document.removeEventListener("mousedown", this.onDocMouseDown);
-    window.removeEventListener("blur", this.close);
   }
-
-  /** 仅在展开期间绑定，因此触发时弹层必然存在 */
-  private onDocMouseDown = (e: MouseEvent) => {
-    const target = e.target as Node;
-    if (!this.dom.contains(target) && !this.popup!.contains(target)) {
-      this.close();
-    }
-  };
 }
 
 export default new Align();

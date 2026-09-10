@@ -2,9 +2,14 @@ import "./EditorContent.scss";
 import html from "./EditorContent.html?raw";
 import CtrlBase from "../CtrlBase";
 import { Editor } from "roosterjs-content-model-core";
-import { WatermarkPlugin } from "roosterjs";
+import {
+  EditPlugin,
+  HyperlinkPlugin,
+  PastePlugin,
+  ShortcutPlugin,
+  WatermarkPlugin,
+} from "roosterjs";
 import EditorPlugin from "./EditorPlugin";
-import QuoteKeyboardPlugin from "./QuoteKeyboardPlugin";
 
 class EditorContent extends CtrlBase {
   editor: Editor | null = null;
@@ -17,8 +22,15 @@ class EditorContent extends CtrlBase {
     this.editor = new Editor(this.dom as HTMLDivElement, {
       plugins: [
         new WatermarkPlugin("请输入文章内容…"),
+        // 官方 createEditor 默认三件套：Paste 负责粘贴清理，Edit 负责 Backspace/Delete/Tab/Enter
+        // 的 Content Model 编辑（引用内空行回车跳出即由其中的 deleteEmptyQuote 提供）
+        new PastePlugin(),
+        new EditPlugin(),
+        // 对标官方 demo：hover 显示链接地址、Ctrl+Click 打开链接、输入文本与 url 一致时同步 href
+        new HyperlinkPlugin(),
+        // 对标官方 demo：Ctrl+B/I/U、Ctrl+Z/Y、Ctrl+Shift+7/8 等快捷键
+        new ShortcutPlugin(),
         new EditorPlugin(),
-        new QuoteKeyboardPlugin(),
       ],
       defaultSegmentFormat: {
         fontFamily: "微软雅黑",

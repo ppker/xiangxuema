@@ -220,6 +220,11 @@
   font-size: 13px;
   color: #333;
 
+  /* 两个字段（地址 / 显示文本）之间的间距 */
+  .linkDialogField + .linkDialogField {
+    margin-top: 8px;
+  }
+
   .linkDialogLabel {
     margin-bottom: 6px;
     font-size: 12px;

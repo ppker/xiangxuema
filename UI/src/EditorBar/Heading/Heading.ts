@@ -1,5 +1,5 @@
 import html from "./Heading.html?raw";
-import CtrlBase from "../../CtrlBase";
+import DropdownBase from "../../DropdownBase";
 import { setHeadingLevel } from "roosterjs-content-model-api";
 import EditorContent from "../../EditorContent/EditorContent";
 import Msg from "../../Msg";
@@ -32,17 +32,17 @@ const LABEL_OF: Record<HeadingLevel, string> = {
  * 下拉列表内容：一级~六级标题（h1~h6）+ 普通段落。
  * - 选中某项：光标/选区所在段落设为对应标题级别（0 表示恢复普通段落）
  * - 按钮文字随光标所在段的标题级别联动（来自 getFormatState 的 headingLevel）
+ * 开合/定位/外部关闭逻辑见 DropdownBase。
  */
-class Heading extends CtrlBase {
+class Heading extends DropdownBase {
   private current: HeadingLevel = 0;
-  private popup: HTMLDivElement | null = null;
 
   constructor() {
     super(html);
   }
 
   override ready(): void {
-    this.dom.addEventListener("click", () => (this.popup ? this.close() : this.open()));
+    this.dom.addEventListener("click", () => this.toggle());
     Msg.on("editorState", (state) => this.render(state.headingLevel as number | undefined));
   }
 
@@ -56,53 +56,25 @@ class Heading extends CtrlBase {
     this.dom.querySelector<HTMLElement>(".fontName").textContent = LABEL_OF[level];
   }
 
-  private open(): void {
+  protected buildPopup(): HTMLDivElement {
     const popup = document.createElement("div");
     popup.className = "fontDropdown headingDropdown";
     for (const item of HEADING_ITEMS) {
       const row = document.createElement("div");
       row.className = item.level === this.current ? "fontItem selected" : "fontItem";
-      row.dataset.level = String(item.level);
+      row.dataset.value = String(item.level);
       row.textContent = item.label;
       popup.appendChild(row);
     }
-    popup.addEventListener("click", this.onItemClick);
-    const rect = this.dom.getBoundingClientRect();
-    const below = rect.bottom + 4;
-    const popupHeight = popup.offsetHeight;
-    popup.style.left = `${rect.left}px`;
-    popup.style.top = below + popupHeight > window.innerHeight ? `${rect.top - popupHeight - 4}px` : `${below}px`;
-    document.addEventListener("mousedown", this.onDocMouseDown);
-    window.addEventListener("blur", this.close);
-    document.body.appendChild(popup);
-    this.popup = popup;
+    return popup;
   }
 
-  /** 事件委托：popup 上只绑一个 click，点中哪项由目标元素定位 */
-  private onItemClick = (e: MouseEvent) => {
-    const item = (e.target as HTMLElement).closest(".fontItem") as HTMLElement | null;
-    if (item) {
-      const level = Number(item.dataset.level) as HeadingLevel;
-      setHeadingLevel(EditorContent.editor, level);
-      this.render(level);
-      this.close();
-    }
-  };
-
-  private close(): void {
-    this.popup?.remove();
-    this.popup = null;
-    document.removeEventListener("mousedown", this.onDocMouseDown);
-    window.removeEventListener("blur", this.close);
+  protected onPicked(value: string): void {
+    const level = Number(value) as HeadingLevel;
+    setHeadingLevel(EditorContent.editor, level);
+    this.render(level);
+    this.close();
   }
-
-  /** 仅在展开期间绑定，因此触发时弹层必然存在 */
-  private onDocMouseDown = (e: MouseEvent) => {
-    const target = e.target as Node;
-    if (!this.dom.contains(target) && !this.popup!.contains(target)) {
-      this.close();
-    }
-  };
 }
 
 export default new Heading();

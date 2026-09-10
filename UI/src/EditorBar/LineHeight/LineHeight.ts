@@ -1,6 +1,6 @@
 import html from "./LineHeight.html?raw";
 import lineHeightSvg from "../icon/lineHeight.svg?raw";
-import CtrlBase from "../../CtrlBase";
+import DropdownBase from "../../DropdownBase";
 import { getSelectedParagraphs } from "roosterjs-content-model-dom";
 import EditorContent from "../../EditorContent/EditorContent";
 import Msg from "../../Msg";
@@ -15,11 +15,11 @@ const DEFAULT_LINE_HEIGHT = "1.5";
 /**
  * 行高下拉（模块单例）。
  * 按钮为图标 + 箭头，点开展开挂到 body 的下拉；下拉项为固定倍数，选择后应用并回显选中态。
+ * 开合/定位/外部关闭逻辑见 DropdownBase。
  */
-class LineHeight extends CtrlBase {
+class LineHeight extends DropdownBase {
   /** 当前行高档位（"1"/"1.5"/…）；初始为默认档位，即下拉默认选中 "1.5" */
   private current = DEFAULT_LINE_HEIGHT;
-  private popup: HTMLDivElement | null = null;
 
   constructor() {
     super(html);
@@ -27,7 +27,7 @@ class LineHeight extends CtrlBase {
 
   override ready(): void {
     this.dom.querySelector(".toolIcon")!.innerHTML = lineHeightSvg;
-    this.dom.addEventListener("click", () => (this.popup ? this.close() : this.open()));
+    this.dom.addEventListener("click", () => this.toggle());
     Msg.on("editorState", (state) => this.render(state.lineHeight, state.fontSize));
   }
 
@@ -70,66 +70,39 @@ class LineHeight extends CtrlBase {
     return m[2].toLowerCase() === "px" ? parseFloat(m[1]) : (parseFloat(m[1]) * 4) / 3;
   }
 
-  private open(): void {
+  protected buildPopup(): HTMLDivElement {
     const popup = document.createElement("div");
     popup.className = "fontDropdown lineHeightDropdown";
     for (const value of LINE_HEIGHTS) {
       const item = document.createElement("div");
       item.className = value === this.current ? "fontItem selected" : "fontItem";
+      item.dataset.value = value;
       item.textContent = value;
       popup.appendChild(item);
     }
-    popup.addEventListener("click", this.onItemClick);
-    const rect = this.dom.getBoundingClientRect();
-    const below = rect.bottom + 4;
-    const popupHeight = popup.offsetHeight;
-    popup.style.left = `${rect.left}px`;
-    popup.style.top = below + popupHeight > window.innerHeight ? `${rect.top - popupHeight - 4}px` : `${below}px`;
-    document.addEventListener("mousedown", this.onDocMouseDown);
-    window.addEventListener("blur", this.close);
-    document.body.appendChild(popup);
-    this.popup = popup;
+    return popup;
   }
 
-  /** 事件委托：popup 上只绑一个 click，点中哪项由目标元素定位 */
-  private onItemClick = (e: MouseEvent) => {
-    const item = (e.target as HTMLElement).closest(".fontItem") as HTMLElement | null;
-    if (item?.textContent) {
-      const editor = EditorContent.editor;
-      editor.focus();
-      editor.formatContentModel(
-        (model) => {
-          const paragraphs = getSelectedParagraphs(model, true);
-          if (paragraphs.length === 0) {
-            return false;
-          }
-          paragraphs.forEach((paragraph) => {
-            paragraph.format.lineHeight = item.textContent;
-          });
-          return true;
-        },
-        { apiName: "setLineHeight" },
-      );
-      // 应用的是下拉档位本身，直接作为选中态（后续 editorState 会按 px 换算回同一档位）
-      this.current = item.textContent;
-      this.close();
-    }
-  };
-
-  private close(): void {
-    this.popup?.remove();
-    this.popup = null;
-    document.removeEventListener("mousedown", this.onDocMouseDown);
-    window.removeEventListener("blur", this.close);
+  protected onPicked(value: string): void {
+    const editor = EditorContent.editor;
+    editor.focus();
+    editor.formatContentModel(
+      (model) => {
+        const paragraphs = getSelectedParagraphs(model, true);
+        if (paragraphs.length === 0) {
+          return false;
+        }
+        paragraphs.forEach((paragraph) => {
+          paragraph.format.lineHeight = value;
+        });
+        return true;
+      },
+      { apiName: "setLineHeight" },
+    );
+    // 应用的是下拉档位本身，直接作为选中态（后续 editorState 会按 px 换算回同一档位）
+    this.current = value;
+    this.close();
   }
-
-  /** 仅在展开期间绑定，因此触发时弹层必然存在 */
-  private onDocMouseDown = (e: MouseEvent) => {
-    const target = e.target as Node;
-    if (!this.dom.contains(target) && !this.popup!.contains(target)) {
-      this.close();
-    }
-  };
 }
 
 export default new LineHeight();

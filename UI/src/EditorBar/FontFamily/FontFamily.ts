@@ -1,5 +1,5 @@
 import html from "./FontFamily.html?raw";
-import CtrlBase from "../../CtrlBase";
+import DropdownBase from "../../DropdownBase";
 import { setFontName } from "roosterjs-content-model-api";
 import EditorContent from "../../EditorContent/EditorContent";
 import Msg from "../../Msg";
@@ -9,18 +9,17 @@ const FONT_OPTIONS = ["微软雅黑", "宋体", "黑体", "仿宋", "楷体", "A
 
 /**
  * 字体选择器（模块单例）。
- * 根元素即工具栏按钮；下拉列表在展开时用 DOM 构建挂到 body，关闭即移除。
+ * 根元素即工具栏按钮；下拉列表在展开时用 DOM 构建挂到 body，关闭即移除（开合逻辑见 DropdownBase）。
  */
-class FontFamily extends CtrlBase {
+class FontFamily extends DropdownBase {
   private current = "";
-  private popup: HTMLDivElement | null = null;
 
   constructor() {
     super(html);
   }
 
   override ready(): void {
-    this.dom.addEventListener("click", () => (this.popup ? this.close() : this.open()));
+    this.dom.addEventListener("click", () => this.toggle());
     Msg.on("editorState", (state) => this.render(state.fontName));
   }
 
@@ -30,52 +29,25 @@ class FontFamily extends CtrlBase {
     this.dom.querySelector<HTMLElement>(".fontName").textContent = this.current || "默认";
   }
 
-  private open(): void {
+  protected buildPopup(): HTMLDivElement {
     const popup = document.createElement("div");
     popup.className = "fontDropdown";
     for (const name of FONT_OPTIONS) {
       const item = document.createElement("div");
       item.className = name === this.current ? "fontItem selected" : "fontItem";
+      item.dataset.value = name;
       item.textContent = name;
       item.style.fontFamily = name;
       popup.appendChild(item);
     }
-    popup.addEventListener("click", this.onItemClick);
-    const rect = this.dom.getBoundingClientRect();
-    const below = rect.bottom + 4;
-    const popupHeight = popup.offsetHeight;
-    popup.style.left = `${rect.left}px`;
-    popup.style.top = below + popupHeight > window.innerHeight ? `${rect.top - popupHeight - 4}px` : `${below}px`;
-    document.addEventListener("mousedown", this.onDocMouseDown);
-    window.addEventListener("blur", this.close);
-    document.body.appendChild(popup);
-    this.popup = popup;
+    return popup;
   }
 
-  /** 事件委托：popup 上只绑一个 click，点中哪项由目标元素定位 */
-  private onItemClick = (e: MouseEvent) => {
-    const item = (e.target as HTMLElement).closest(".fontItem") as HTMLElement | null;
-    if (item) {
-      setFontName(EditorContent.editor, item.style.fontFamily);
-      this.render(item.style.fontFamily);
-      this.close();
-    }
-  };
-
-  private close(): void {
-    this.popup?.remove();
-    this.popup = null;
-    document.removeEventListener("mousedown", this.onDocMouseDown);
-    window.removeEventListener("blur", this.close);
+  protected onPicked(value: string): void {
+    setFontName(EditorContent.editor, value);
+    this.render(value);
+    this.close();
   }
-
-  /** 仅在展开期间绑定，因此触发时弹层必然存在 */
-  private onDocMouseDown = (e: MouseEvent) => {
-    const target = e.target as Node;
-    if (!this.dom.contains(target) && !this.popup!.contains(target)) {
-      this.close();
-    }
-  };
 }
 
 export default new FontFamily();

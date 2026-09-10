@@ -4,19 +4,27 @@ import CtrlBase from "../../CtrlBase";
 import { adjustLinkSelection, insertLink } from "roosterjs-content-model-api";
 import EditorContent from "../../EditorContent/EditorContent";
 import Msg from "../../Msg";
-import type { LinkState } from "../../EditorContent/linkState";
 
 /**
- * 插入/编辑链接按钮（模块单例）。
- * 状态机（与需求澄清一致）：
- * - 有选中文本（普通或含链接）或光标在链接文本内 → 可点
- * - 光标/选区命中链接时高亮(active)，且弹窗预填当前链接地址
- * 点击后在光标/选区上套链接：有选中文本则套到选中的文本；光标在链接内无选区则更新该链接地址。
+ * 插入/编辑链接按钮（模块单例），与官方 insertLinkButton 对齐。
+ *
+ * 官方这个按钮没有任何可点性门禁（不定义 isDisabled / isChecked），永远可点：
+ * “当前有没有选中文本”完全交给点击后的 adjustLinkSelection(editor) 处理 ——
+ * 光标折叠时它会自动扩选一个词，光标/选区在链接里时扩成整条链接。
+ * 因此这里也不做任何选区探测，只用原生 canUnlink 做按钮高亮。
+ *
+ * 弹窗与官方 showInputDialog 的两个输入项一致：
+ * - 链接地址（URL）：initValue = adjustLinkSelection 返回的第 2 项（已有链接地址）
+ * - 显示文本（Display as）：initValue = 返回的第 1 项（选中文本 / 链接文本）
+ * 并复刻官方的联动：地址被修改、且显示文本未被单独改过（仍等于改动前的地址）时，显示文本跟随地址。
  */
 class Link extends CtrlBase {
   private popup: HTMLDivElement | null = null;
-  private lastState: LinkState = { hasTextSelection: false, inLink: false, linkUrl: "" };
-  private input: HTMLInputElement | null = null;
+  private urlInput: HTMLInputElement | null = null;
+  private displayInput: HTMLInputElement | null = null;
+  /** 弹窗打开时的初始值，用于判断用户是否真的改过（与官方提交条件一致） */
+  private initUrl = "";
+  private initDisplayText = "";
 
   constructor() {
     super(html);
@@ -27,34 +35,53 @@ class Link extends CtrlBase {
     // 阻止 mousedown 默认行为，避免按钮抢走编辑器焦点/清掉选区
     this.dom.addEventListener("mousedown", (e) => e.preventDefault());
     this.dom.addEventListener("click", () => (this.popup ? this.close() : this.open()));
+    // 与官方一致：按钮始终可点，只按原生 canUnlink 决定是否高亮
     Msg.on("editorState", (state) => {
-      this.lastState = {
-        hasTextSelection: state.hasTextSelection === true,
-        inLink: state.inLink === true,
-        linkUrl: typeof state.linkUrl === "string" ? state.linkUrl : "",
-      };
-      const linkable = this.lastState.hasTextSelection || this.lastState.inLink;
-      (this.dom as HTMLButtonElement).disabled = !linkable;
-      this.dom.classList.toggle("active", this.lastState.inLink);
+      this.dom.classList.toggle("active", state.canUnlink === true);
     });
   }
 
   private open(): void {
-    // 按钮仅在可选时可用（disabled 由 editorState 维护的 lastState 把关），
-    // 直接复用最近一次状态预填已有链接地址（打开即选中方便直接改写）
-    const state = this.lastState;
-    if (!state.hasTextSelection && !state.inLink) {
-      return;
-    }
+    const editor = EditorContent.editor;
+    // 与官方 insertLinkButton 一致：先 adjustLinkSelection，一次拿到选中文本与已有链接地址；
+    // 光标折叠在链接内时它会把选区扩成整条链接，insertLink 才能“更新”该链接而不是插入新词
+    const [displayText, url] = adjustLinkSelection(editor);
+    this.initUrl = url ?? "";
+    this.initDisplayText = displayText;
+
     const popup = document.createElement("div");
     popup.className = "linkDialog";
     popup.innerHTML = `
-      <div class="linkDialogLabel">链接地址</div>
-      <input class="linkDialogInput" type="text" spellcheck="false" placeholder="https://www.example.com" />
+      <div class="linkDialogField">
+        <div class="linkDialogLabel">链接地址</div>
+        <input class="linkDialogInput linkDialogUrl" type="text" spellcheck="false" placeholder="https://www.example.com" />
+      </div>
+      <div class="linkDialogField">
+        <div class="linkDialogLabel">显示文本</div>
+        <input class="linkDialogInput linkDialogDisplay" type="text" spellcheck="false" placeholder="链接显示的文字" />
+      </div>
       <div class="linkDialogBtns">
         <button type="button" class="linkDialogBtn">取消</button>
         <button type="button" class="linkDialogBtn linkDialogBtnPrimary">确定</button>
       </div>`;
+
+    const urlInput = popup.querySelector<HTMLInputElement>(".linkDialogUrl")!;
+    const displayInput = popup.querySelector<HTMLInputElement>(".linkDialogDisplay")!;
+    this.urlInput = urlInput;
+    this.displayInput = displayInput;
+    urlInput.value = this.initUrl;
+    displayInput.value = this.initDisplayText;
+
+    // 与官方 showInputDialog 的 onItemChange 同款联动：改地址时，若显示文本未被单独改过
+    // （仍等于改动前的地址），则显示文本跟随新地址
+    let lastUrl = this.initUrl;
+    urlInput.addEventListener("input", () => {
+      if (displayInput.value === lastUrl) {
+        displayInput.value = urlInput.value;
+      }
+      lastUrl = urlInput.value;
+    });
+
     popup.addEventListener("click", (e) => {
       const btn = (e.target as HTMLElement).closest<HTMLButtonElement>("button.linkDialogBtn");
       if (!btn) {
@@ -74,50 +101,50 @@ class Link extends CtrlBase {
         this.close();
       }
     });
-    this.input = popup.querySelector(".linkDialogInput")!;
-    this.input.value = state.linkUrl || "";
+
     this.placePopup(popup);
     document.addEventListener("mousedown", this.onDocMouseDown);
     window.addEventListener("blur", this.close);
     document.body.appendChild(popup);
     this.popup = popup;
-    this.input.focus();
-    this.input.select();
+    // 与官方一致：默认聚焦地址栏
+    urlInput.focus();
+    urlInput.select();
   }
 
   private placePopup(popup: HTMLDivElement): void {
     const rect = this.dom!.getBoundingClientRect();
     const below = rect.bottom + 4;
-    const popupHeight = 92; // 弹窗大致高度，定位用
+    const popupHeight = 168; // 弹窗大致高度（两个字段 + 按钮），定位用
     popup.style.left = `${rect.left}px`;
     popup.style.top =
       below + popupHeight > window.innerHeight ? `${rect.top - popupHeight - 4}px` : `${below}px`;
   }
 
   private confirm(): void {
-    const editor = EditorContent.editor;
-    const value = this.input?.value.trim() ?? "";
-    if (!editor || !value) {
-      // 空地址视为取消
+    const url = this.urlInput?.value.trim() ?? "";
+    const displayText = this.displayInput?.value ?? "";
+    // 与官方提交条件一致：地址为空，或用户什么都没改 → 不执行，直接关闭
+    if (!url || (url === this.initUrl && displayText === this.initDisplayText)) {
       this.close();
       return;
     }
-    // 恢复编辑器焦点（会还原失焦前选区）
+    const editor = EditorContent.editor;
+    // 恢复编辑器焦点（会还原失焦前选区，即 open() 中 adjustLinkSelection 的结果）
     editor.focus();
-    // 若光标在链接内无选区，先把选区扩展到整条链接，insertLink 才能“更新”该链接而非插入新词；
-    // 有文本选区时本调用不会改动选区
-    adjustLinkSelection(editor);
-    insertLink(editor, value, undefined, undefined, "_blank");
+    // 官方调用形态：insertLink(editor, link, anchorTitle, displayText)，不指定 target
+    insertLink(editor, url, url, displayText);
     this.close();
   }
 
-  private close(): void {
+  private close = (): void => {
     this.popup?.remove();
     this.popup = null;
-    this.input = null;
+    this.urlInput = null;
+    this.displayInput = null;
     document.removeEventListener("mousedown", this.onDocMouseDown);
     window.removeEventListener("blur", this.close);
-  }
+  };
 
   /** 仅在展开期间绑定，因此触发时弹层必然存在 */
   private onDocMouseDown = (e: MouseEvent) => {

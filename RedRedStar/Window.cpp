@@ -67,7 +67,7 @@ void Window::createWin()
 
 void Window::show(const JsonObject& params, JsonObject& result)
 {
-    ShowWindow(hwnd, SW_SHOW);
+    ShowWindow(hwnd, SW_SHOWMAXIMIZED);
     ctrl->put_IsVisible(TRUE);
 }
 

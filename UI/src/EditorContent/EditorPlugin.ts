@@ -5,6 +5,17 @@ import type { ContentModelFormatState, IEditor, PluginEvent } from "roosterjs-co
 export default class EditorPlugin implements EditorPlugin {
   private editor!: IEditor;
   private lastState: ContentModelFormatState | null = null;
+  private timer = 0;
+  /** 编辑操作后延迟多久刷新按钮状态（毫秒），对应官方 createRibbonPlugin 的 delayUpdateTime */
+  private delayUpdateTime: number;
+
+  /**
+   * @param delayUpdateTime 用户编辑操作后延迟多久刷新按钮状态（毫秒），默认 200，与官方一致
+   */
+  constructor(delayUpdateTime = 200) {
+    this.delayUpdateTime = delayUpdateTime;
+  }
+
   getName(): string {
     return "EditorState";
   }
@@ -13,19 +24,47 @@ export default class EditorPlugin implements EditorPlugin {
     this.editor = editor;
   }
 
-  dispose(): void {}
+  dispose(): void {
+    // 取消尚未触发的延迟刷新，避免销毁后还去读已经失效的 editor
+    if (this.timer) {
+      this.editor.getDocument().defaultView?.clearTimeout(this.timer);
+      this.timer = 0;
+    }
+  }
 
+  /**
+   * 事件分支与官方 createRibbonPlugin 完全一致：
+   * - editorReady / contentChanged / zoomChanged → 立即刷新（频次低、语义明确）
+   * - keyDown / mouseUp → 走 delayUpdate 防抖（高频事件，合并刷新）
+   * 其余事件不触发刷新。
+   */
   onPluginEvent(event: PluginEvent): void {
     switch (event.eventType) {
       case "editorReady":
-      case "keyUp":
-      case "mouseUp":
-      case "input":
-      case "compositionEnd":
       case "contentChanged":
-      case "selectionChanged":
+      case "zoomChanged":
         this.emitState();
+        break;
+
+      case "keyDown":
+      case "mouseUp":
+        this.delayUpdate();
+        break;
     }
+  }
+
+  /** 官方 delayUpdate：尾触发防抖，定时器挂在编辑器所在的 window 上 */
+  private delayUpdate(): void {
+    const win = this.editor.getDocument().defaultView!;
+
+    if (this.timer) {
+      win.clearTimeout(this.timer);
+    }
+
+    this.timer = win.setTimeout(() => {
+      this.timer = 0;
+      this.emitState();
+    }, this.delayUpdateTime);
   }
 
   /**

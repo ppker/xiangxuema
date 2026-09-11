@@ -1,6 +1,7 @@
 import { createButton } from "../ToolbarButton";
 import {
   adjustLinkSelection,
+  insertImage,
   removeLink,
   toggleBlockQuote,
   toggleBold,
@@ -13,8 +14,9 @@ import {
   toggleUnderline,
 } from "roosterjs-content-model-api";
 import { redo, undo } from "roosterjs-content-model-core";
-import type { ContentModelFormatContainerFormat } from "roosterjs-content-model-types";
+import type { ContentModelFormatContainerFormat, IEditor } from "roosterjs-content-model-types";
 import boldSvg from "./icon/bold.svg?raw";
+import imageSvg from "./icon/image.svg?raw";
 import italicSvg from "./icon/italic.svg?raw";
 import underlineSvg from "./icon/underline.svg?raw";
 import strikethroughSvg from "./icon/strikethrough.svg?raw";
@@ -136,4 +138,31 @@ export const linkRemoveButton = createButton({
   // 原生 canUnlink：光标/选区命中链接时为 true（折叠光标在链接内同样成立），语义等同“在链接内”
   isChecked: (state) => state.canUnlink === true,
   isDisabled: (state) => state.canUnlink !== true,
+});
+
+/**
+ * 与官方 insertImageButton 同款：临时创建一个隐藏的 file input 唤起系统文件选择器，
+ * 选中后逐个交给 insertImage(editor, file)。
+ * input 在 click() 后立刻从 DOM 移除，但 change 监听由闭包持有，选完文件仍会触发。
+ */
+function insertImageFromFile(editor: IEditor): void {
+  const doc = editor.getDocument();
+  const input = doc.createElement("input");
+  input.type = "file";
+  input.accept = "image/*";
+  input.style.display = "none";
+  doc.body.appendChild(input);
+  input.addEventListener("change", () => {
+    for (const file of input.files ?? []) {
+      insertImage(editor, file);
+    }
+  });
+  input.click();
+  doc.body.removeChild(input);
+}
+
+export const imageButton = createButton({
+  icon: imageSvg,
+  title: "插入图片",
+  onClick: insertImageFromFile,
 });

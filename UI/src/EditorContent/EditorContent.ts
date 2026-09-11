@@ -5,6 +5,7 @@ import { Editor } from "roosterjs-content-model-core";
 import {
   EditPlugin,
   HyperlinkPlugin,
+  ImageEditPlugin,
   PastePlugin,
   ShortcutPlugin,
   WatermarkPlugin,
@@ -28,6 +29,9 @@ class EditorContent extends CtrlBase {
         new EditPlugin(),
         // 对标官方 demo：hover 显示链接地址、Ctrl+Click 打开链接、输入文本与 url 一致时同步 href
         new HyperlinkPlugin(),
+        // 对标官方 demo：点击图片出现拖拽手柄，可拉伸缩放。
+        // 官方默认 onSelectState 为 resize + rotate，这里按需求只保留缩放（不旋转）
+        new ImageEditPlugin({ disableRotate: true }),
         // 对标官方 demo：Ctrl+B/I/U、Ctrl+Z/Y、Ctrl+Shift+7/8 等快捷键
         new ShortcutPlugin(),
         new EditorPlugin(),

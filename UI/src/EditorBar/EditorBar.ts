@@ -11,6 +11,7 @@ import LineHeight from "./LineHeight/LineHeight";
 import Link from "./Link/Link";
 import {
   boldButton,
+  imageButton,
   italicButton,
   linkRemoveButton,
   listBulletButton,
@@ -46,7 +47,8 @@ const GROUPS: CtrlBase[][] = [
   [TextColor, BackgroundColor, quoteButton],
   [Align, LineHeight],
   [listBulletButton, listNumberButton],
-  [Link, linkRemoveButton],
+  // 插入类：链接 + 图片
+  [Link, linkRemoveButton, imageButton],
 ];
 
 /**

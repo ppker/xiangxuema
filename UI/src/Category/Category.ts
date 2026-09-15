@@ -53,7 +53,7 @@ class Category extends CtrlBase {
     this.dom.appendChild(root);
   }
 
-  /** 构建单个分类节点（li）；有子分类时带展开箭头 */
+  /** 构建单个分类节点（li）；有子分类时可点击标签展开/收起 */
   private buildNode(node: CategoryNode): HTMLLIElement {
     const li = document.createElement("li");
     li.className = "categoryNode";
@@ -66,11 +66,6 @@ class Category extends CtrlBase {
 
     if (node.children && node.children.length > 0) {
       li.classList.add("hasChildren");
-
-      const toggle = document.createElement("span");
-      toggle.className = "categoryCaret";
-      toggle.textContent = "▸";
-      label.prepend(toggle);
 
       const childUl = document.createElement("ul");
       childUl.className = "categoryChildren";

@@ -14,16 +14,54 @@
   padding: 6px 0;
 }
 
-/* 节点：一行标签 + 可选的收起/展开子树 */
+/* 树形虚线的层级连接：
+   --dd            一列的横向缩进量，即每条横向虚线的长度
+   --label-height  标签行高，用于把横向虚线对中到文字垂直中心 */
 .categoryNode {
+  --dd: 18px;
+  --label-height: 24px;
+
+  position: relative;
   list-style: none;
+  padding-left: var(--dd);
+}
+
+/* 纵向虚线：画在本节点左缘（预留区最左）。
+   每层缩进固定为一条虚线宽，故同层节点的纵向虚线自然落于同一列；
+   纵向贯穿本节点整列（标签 + 子树），形成从上层逐级向下的连续纵线。 */
+.categoryNode::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-left: 1px dashed #c6cbd1;
+  pointer-events: none;
+}
+
+/* 横向虚线：从父节点纵向虚线（在本节点左侧一条虚线宽处）接到本节点文字前方。
+   宽度为两条虚线宽（-dd → +dd），恰好把父纵线连到本层文字；
+   纵向定位在标签高度一半处，保证横线落在文字垂直中心。 */
+.categoryNode::after {
+  content: "";
+  position: absolute;
+  left: calc(-1 * var(--dd));
+  top: calc(var(--label-height) / 2);
+  width: calc(2 * var(--dd));
+  border-bottom: 1px dashed #c6cbd1;
+  pointer-events: none;
+}
+
+/* 顶层节点没有父纵线：改为从自身纵线向右横向接出（|--） */
+.categoryTree > .categoryNode::after {
+  left: 0;
+  width: var(--dd);
 }
 
 .categoryLabel {
   display: flex;
   align-items: center;
-  height: 28px;
-  padding: 0 10px;
+  height: var(--label-height);
   font-size: 13px;
   color: #333;
   cursor: pointer;
@@ -41,21 +79,10 @@
   color: #0069cc;
 }
 
-/* 展开箭头：有子分类的节点显示 */
-.categoryCaret {
-  flex: none;
-  width: 14px;
-  margin-right: 2px;
-  font-size: 11px;
-  color: #666;
-  transition: transform 0.15s ease;
-}
-
-/* 子分类默认展开；collapsed 时收起并隐藏子树 */
 .categoryChildren {
   list-style: none;
   margin: 0;
-  padding: 0 0 0 16px;
+  padding: 0; /* 缩进由节点自身 padding-left 提供，保证与父纵线一列对齐 */
 }
 
 .categoryNode.collapsed > .categoryChildren {

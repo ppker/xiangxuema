@@ -29,7 +29,7 @@ import {
  * 工具栏分组：组内按声明顺序排列，组间自动插入竖向分隔线。
  * 新增工具：
  * - 无弹层的按钮 → 在 buttons.ts 加一条声明，放进对应分组
- * - 带下拉/弹层的控件 → 在各自目录实现 CtrlBase（下拉继承 DropdownBase），放进对应分组
+ * - 带下拉/弹层的控件 → 在各自目录实现 CtrlBase（弹层开合/定位/外部关闭逻辑各控件自带），放进对应分组
  */
 const GROUPS: CtrlBase[][] = [
   [undoButton, redoButton],

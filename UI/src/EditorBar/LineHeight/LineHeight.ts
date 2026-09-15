@@ -1,6 +1,6 @@
 import html from "./LineHeight.html?raw";
 import lineHeightSvg from "../icon/lineHeight.svg?raw";
-import DropdownBase from "../../DropdownBase";
+import CtrlBase from "../../CtrlBase";
 import { getSelectedParagraphs } from "roosterjs-content-model-dom";
 import EditorContent from "../../EditorContent/EditorContent";
 import Msg from "../../Msg";
@@ -15,11 +15,67 @@ const DEFAULT_LINE_HEIGHT = "1.5";
 /**
  * 行高下拉（模块单例）。
  * 按钮为图标 + 箭头，点开展开挂到 body 的下拉；下拉项为固定倍数，选择后应用并回显选中态。
- * 开合/定位/外部关闭逻辑见 DropdownBase。
  */
-class LineHeight extends DropdownBase {
+class LineHeight extends CtrlBase {
   /** 当前行高档位（"1"/"1.5"/…）；初始为默认档位，即下拉默认选中 "1.5" */
   private current = DEFAULT_LINE_HEIGHT;
+
+  /** 挂到 body 上的下拉弹层；null 表示当前未展开 */
+  private popup: HTMLDivElement | null = null;
+
+  // ---- 弹层开合 / 定位 / 外部关闭 ----
+  // 注意：close、onItemClick、onDocMouseDown 必须是箭头函数类字段。
+  // addEventListener / removeEventListener 靠引用相等解绑，改成普通方法会静默解绑失败
+  // （表现为弹层能开、关不掉，且 document 上的监听每次展开都会多挂一个）。
+
+  /** 点击按钮时调用：已展开则收起，否则展开 */
+  private toggle(): void {
+    this.popup ? this.close() : this.open();
+  }
+
+  private open(): void {
+    const popup = this.buildPopup();
+    // 先挂载再量高度：挂载前 offsetHeight 为 0，会导致“向上翻折”判断失效
+    document.body.appendChild(popup);
+    this.position(popup);
+    popup.addEventListener("click", this.onItemClick);
+    document.addEventListener("mousedown", this.onDocMouseDown);
+    window.addEventListener("blur", this.close);
+    this.popup = popup;
+  }
+
+  private close = (): void => {
+    this.popup?.remove();
+    this.popup = null;
+    document.removeEventListener("mousedown", this.onDocMouseDown);
+    window.removeEventListener("blur", this.close);
+  };
+
+  /** 按触发按钮位置定位弹层；下方放不下则向上翻折 */
+  private position(popup: HTMLElement): void {
+    const rect = this.dom!.getBoundingClientRect();
+    const below = rect.bottom + 4;
+    const popupHeight = popup.offsetHeight;
+    popup.style.left = `${rect.left}px`;
+    popup.style.top =
+      below + popupHeight > window.innerHeight ? `${rect.top - popupHeight - 4}px` : `${below}px`;
+  }
+
+  /** 事件委托：点中带 data-value 的列表项交给 onPicked */
+  private onItemClick = (e: MouseEvent): void => {
+    const item = (e.target as HTMLElement).closest<HTMLElement>("[data-value]");
+    if (item) {
+      this.onPicked(item.dataset.value ?? "");
+    }
+  };
+
+  /** 仅在展开期间绑定，因此触发时弹层必然存在 */
+  private onDocMouseDown = (e: MouseEvent): void => {
+    const target = e.target as Node;
+    if (!this.dom!.contains(target) && !this.popup!.contains(target)) {
+      this.close();
+    }
+  };
 
   constructor() {
     super(html);
@@ -70,7 +126,7 @@ class LineHeight extends DropdownBase {
     return m[2].toLowerCase() === "px" ? parseFloat(m[1]) : (parseFloat(m[1]) * 4) / 3;
   }
 
-  protected buildPopup(): HTMLDivElement {
+  private buildPopup(): HTMLDivElement {
     const popup = document.createElement("div");
     popup.className = "fontDropdown lineHeightDropdown";
     for (const value of LINE_HEIGHTS) {
@@ -83,7 +139,7 @@ class LineHeight extends DropdownBase {
     return popup;
   }
 
-  protected onPicked(value: string): void {
+  private onPicked(value: string): void {
     const editor = EditorContent.editor;
     editor.focus();
     editor.formatContentModel(

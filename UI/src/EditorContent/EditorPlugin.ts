@@ -2,7 +2,7 @@ import Msg from "../Msg";
 import { getFormatState } from "roosterjs-content-model-api";
 import type { ContentModelFormatState, IEditor, PluginEvent } from "roosterjs-content-model-types";
 
-export default class EditorPlugin implements EditorPlugin {
+export default class EditorPlugin {
   private editor!: IEditor;
   private lastState: ContentModelFormatState | null = null;
   private timer = 0;
@@ -77,9 +77,7 @@ export default class EditorPlugin implements EditorPlugin {
     const prev = this.lastState;
     if (prev) {
       const keys = Object.keys(next) as (keyof ContentModelFormatState)[];
-      const unchanged =
-        keys.length === Object.keys(prev).length &&
-        keys.every((key) => Object.is(next[key], prev[key]));
+      const unchanged = keys.length === Object.keys(prev).length && keys.every((key) => Object.is(next[key], prev[key]));
       if (unchanged) {
         return;
       }

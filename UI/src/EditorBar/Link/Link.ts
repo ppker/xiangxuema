@@ -17,6 +17,8 @@ import Msg from "../../Msg";
  * - 链接地址（URL）：initValue = adjustLinkSelection 返回的第 2 项（已有链接地址）
  * - 显示文本（Display as）：initValue = 返回的第 1 项（选中文本 / 链接文本）
  * 并复刻官方的联动：地址被修改、且显示文本未被单独改过（仍等于改动前的地址）时，显示文本跟随地址。
+ *
+ * 弹窗 DOM 写在 Link.html 中，全生命周期只存在一份，开合靠 hidden 属性切换显隐。
  */
 class Link extends CtrlBase {
   private popup: HTMLDivElement | null = null;
@@ -25,6 +27,8 @@ class Link extends CtrlBase {
   /** 弹窗打开时的初始值，用于判断用户是否真的改过（与官方提交条件一致） */
   private initUrl = "";
   private initDisplayText = "";
+  /** 地址框上一次的值，用于「改地址时显示文本跟随」的联动判断 */
+  private lastUrl = "";
 
   constructor() {
     super(html);
@@ -32,54 +36,25 @@ class Link extends CtrlBase {
 
   override ready(): void {
     this.dom.querySelector(".toolIcon")!.innerHTML = linkSvg;
-    // 阻止 mousedown 默认行为，避免按钮抢走编辑器焦点/清掉选区
-    this.dom.addEventListener("mousedown", (e) => e.preventDefault());
-    this.dom.addEventListener("click", () => (this.popup ? this.close() : this.open()));
-    // 与官方一致：按钮始终可点，只按原生 canUnlink 决定是否高亮
-    Msg.on("editorState", (state) => {
-      this.dom.classList.toggle("active", state.canUnlink === true);
-    });
-  }
 
-  private open(): void {
-    const editor = EditorContent.editor;
-    // 与官方 insertLinkButton 一致：先 adjustLinkSelection，一次拿到选中文本与已有链接地址；
-    // 光标折叠在链接内时它会把选区扩成整条链接，insertLink 才能“更新”该链接而不是插入新词
-    const [displayText, url] = adjustLinkSelection(editor);
-    this.initUrl = url ?? "";
-    this.initDisplayText = displayText;
-
-    const popup = document.createElement("div");
-    popup.className = "linkDialog";
-    popup.innerHTML = `
-      <div class="linkDialogField">
-        <div class="linkDialogLabel">链接地址</div>
-        <input class="linkDialogInput linkDialogUrl" type="text" spellcheck="false" placeholder="https://www.example.com" />
-      </div>
-      <div class="linkDialogField">
-        <div class="linkDialogLabel">显示文本</div>
-        <input class="linkDialogInput linkDialogDisplay" type="text" spellcheck="false" placeholder="链接显示的文字" />
-      </div>
-      <div class="linkDialogBtns">
-        <button type="button" class="linkDialogBtn">取消</button>
-        <button type="button" class="linkDialogBtn linkDialogBtnPrimary">确定</button>
-      </div>`;
-
+    // 弹窗与按钮同出一份模板（见 Link.html：弹窗在前、按钮在最后），这里把弹窗挪到 body：
+    // 1) 脱离 #editorBar 的 user-select: none，否则输入框里没法用鼠标选中文字；
+    // 2) 保证 position: fixed 以视口为参照，不受工具栏祖先影响。
+    const popup = this.dom.previousElementSibling as HTMLDivElement;
     const urlInput = popup.querySelector<HTMLInputElement>(".linkDialogUrl")!;
     const displayInput = popup.querySelector<HTMLInputElement>(".linkDialogDisplay")!;
+    document.body.appendChild(popup);
+    this.popup = popup;
     this.urlInput = urlInput;
     this.displayInput = displayInput;
-    urlInput.value = this.initUrl;
-    displayInput.value = this.initDisplayText;
 
     // 与官方 showInputDialog 的 onItemChange 同款联动：改地址时，若显示文本未被单独改过
     // （仍等于改动前的地址），则显示文本跟随新地址
-    let lastUrl = this.initUrl;
     urlInput.addEventListener("input", () => {
-      if (displayInput.value === lastUrl) {
+      if (displayInput.value === this.lastUrl) {
         displayInput.value = urlInput.value;
       }
-      lastUrl = urlInput.value;
+      this.lastUrl = urlInput.value;
     });
 
     popup.addEventListener("click", (e) => {
@@ -93,6 +68,7 @@ class Link extends CtrlBase {
         this.close();
       }
     });
+
     popup.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
@@ -102,11 +78,40 @@ class Link extends CtrlBase {
       }
     });
 
+    // 阻止 mousedown 默认行为，避免按钮抢走编辑器焦点/清掉选区
+    this.dom.addEventListener("mousedown", (e) => e.preventDefault());
+    this.dom.addEventListener("click", () => (this.isOpen() ? this.close() : this.open()));
+    // 与官方一致：按钮始终可点，只按原生 canUnlink 决定是否高亮
+    Msg.on("editorState", (state) => {
+      this.dom.classList.toggle("active", state.canUnlink === true);
+    });
+  }
+
+  /** 弹窗当前是否可见（hidden 属性只由 open/close 维护） */
+  private isOpen(): boolean {
+    return !this.popup!.hidden;
+  }
+
+  private open(): void {
+    const editor = EditorContent.editor;
+    // 与官方 insertLinkButton 一致：先 adjustLinkSelection，一次拿到选中文本与已有链接地址；
+    // 光标折叠在链接内时它会把选区扩成整条链接，insertLink 才能“更新”该链接而不是插入新词
+    const [displayText, url] = adjustLinkSelection(editor);
+    this.initUrl = url ?? "";
+    this.initDisplayText = displayText;
+    this.lastUrl = this.initUrl;
+
+    const popup = this.popup!;
+    const urlInput = this.urlInput!;
+    const displayInput = this.displayInput!;
+    urlInput.value = this.initUrl;
+    displayInput.value = this.initDisplayText;
+
+    // 先显示再定位：hidden 状态下 offsetHeight 为 0，量出来的高度是错的
+    popup.hidden = false;
     this.placePopup(popup);
     document.addEventListener("mousedown", this.onDocMouseDown);
     window.addEventListener("blur", this.close);
-    document.body.appendChild(popup);
-    this.popup = popup;
     // 与官方一致：默认聚焦地址栏
     urlInput.focus();
     urlInput.select();
@@ -115,7 +120,7 @@ class Link extends CtrlBase {
   private placePopup(popup: HTMLDivElement): void {
     const rect = this.dom!.getBoundingClientRect();
     const below = rect.bottom + 4;
-    const popupHeight = 168; // 弹窗大致高度（两个字段 + 按钮），定位用
+    const popupHeight = popup.offsetHeight;
     popup.style.left = `${rect.left}px`;
     popup.style.top =
       below + popupHeight > window.innerHeight ? `${rect.top - popupHeight - 4}px` : `${below}px`;
@@ -138,10 +143,7 @@ class Link extends CtrlBase {
   }
 
   private close = (): void => {
-    this.popup?.remove();
-    this.popup = null;
-    this.urlInput = null;
-    this.displayInput = null;
+    this.popup!.hidden = true;
     document.removeEventListener("mousedown", this.onDocMouseDown);
     window.removeEventListener("blur", this.close);
   };

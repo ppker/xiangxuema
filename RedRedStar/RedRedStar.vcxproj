@@ -150,9 +150,11 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Db.cpp" />
     <ClCompile Include="Env.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Page.cpp" />
+    <ClCompile Include="SQLite\sqlite3.c" />
     <ClCompile Include="Window.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -162,8 +164,10 @@
     <None Include="UI\index.js" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Db.h" />
     <ClInclude Include="Env.h" />
     <ClInclude Include="Page.h" />
+    <ClInclude Include="SQLite\sqlite3.h" />
     <ClInclude Include="Window.h" />
   </ItemGroup>
   <ItemGroup>

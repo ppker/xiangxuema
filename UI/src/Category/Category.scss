@@ -4,4 +4,60 @@
   flex-shrink: 0;
   background: #f4f4f5;
   border-right: 1px solid #e5e6eb;
+  overflow-y: auto;
+  user-select: none;
+}
+
+.categoryTree {
+  list-style: none;
+  margin: 0;
+  padding: 6px 0;
+}
+
+/* 节点：一行标签 + 可选的收起/展开子树 */
+.categoryNode {
+  list-style: none;
+}
+
+.categoryLabel {
+  display: flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 10px;
+  font-size: 13px;
+  color: #333;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.categoryLabel:hover {
+  background: #e8ecf4;
+}
+
+.categoryLabel.selected {
+  background: #d3e3fd;
+  color: #0069cc;
+}
+
+/* 展开箭头：有子分类的节点显示 */
+.categoryCaret {
+  flex: none;
+  width: 14px;
+  margin-right: 2px;
+  font-size: 11px;
+  color: #666;
+  transition: transform 0.15s ease;
+}
+
+/* 子分类默认展开；collapsed 时收起并隐藏子树 */
+.categoryChildren {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 16px;
+}
+
+.categoryNode.collapsed > .categoryChildren {
+  display: none;
 }

@@ -9,26 +9,24 @@ import BackgroundColor from "./BackgroundColor/BackgroundColor";
 import Align from "./Align/Align";
 import LineHeight from "./LineHeight/LineHeight";
 import Link from "./Link/Link";
-import {
-  boldButton,
-  imageButton,
-  italicButton,
-  linkRemoveButton,
-  listBulletButton,
-  listNumberButton,
-  quoteButton,
-  redoButton,
-  strikethroughButton,
-  subscriptButton,
-  superscriptButton,
-  underlineButton,
-  undoButton,
-} from "./buttons";
+import { undoButton } from "./Undo/Undo";
+import { redoButton } from "./Redo/Redo";
+import { boldButton } from "./Bold/Bold";
+import { italicButton } from "./Italic/Italic";
+import { underlineButton } from "./Underline/Underline";
+import { strikethroughButton } from "./Strikethrough/Strikethrough";
+import { subscriptButton } from "./Subscript/Subscript";
+import { superscriptButton } from "./Superscript/Superscript";
+import { quoteButton } from "./Quote/Quote";
+import { listBulletButton } from "./ListBullet/ListBullet";
+import { listNumberButton } from "./ListNumber/ListNumber";
+import { linkRemoveButton } from "./LinkRemove/LinkRemove";
+import { imageButton } from "./Image/Image";
 
 /**
  * 工具栏分组：组内按声明顺序排列，组间自动插入竖向分隔线。
  * 新增工具：
- * - 无弹层的按钮 → 在 buttons.ts 加一条声明，放进对应分组
+ * - 无弹层的按钮 → 在各自目录实现一个按钮类（如 Bold/Bold.ts，具名导出 xxxButton），放进对应分组
  * - 带下拉/弹层的控件 → 在各自目录实现 CtrlBase（弹层开合/定位/外部关闭逻辑各控件自带），放进对应分组
  */
 const GROUPS: CtrlBase[][] = [

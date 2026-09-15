@@ -2,6 +2,7 @@
 
 #include "Env.h"
 #include "Window.h"
+#include "Db.h"
 std::unique_ptr<Env> env;
 Env::Env() :dq{ winrt::Windows::System::DispatcherQueue::GetForCurrentThread() }
 {}
@@ -12,6 +13,10 @@ void Env::init()
 	env = std::make_unique<Env>();
 	env->checkRuntimeVersion();
     env->initDataPath();
+    if (!Db::init()) {
+        MessageBox(nullptr, L"数据库初始化失败", L"系统提示", MB_OK);
+        ExitProcess(-1);
+    }
     env->initWebViewEnv();
 }
 
@@ -95,7 +100,7 @@ void Env::initDataPath()
     auto hr = SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, nullptr, &pathTmp);
     dataPath.assign(pathTmp);
     CoTaskMemFree(pathTmp);
-    dataPath.append("Sample");
+    dataPath.append("RedRedStar");
 }
 
 void Env::initWebViewEnv()

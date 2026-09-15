@@ -2,6 +2,12 @@
 #include "Page.h"
 #include "Window.h"
 
+#include <fstream>
+#include <random>
+#include <ctime>
+#include <chrono>
+#include <filesystem>
+
 
 
 Page::Page(Window* win, ComPtr<ICoreWebView2>& webview) :win{ win }, webview{ webview }
@@ -64,6 +70,9 @@ HRESULT Page::onMsgReceived(ICoreWebView2* webview, ICoreWebView2WebMessageRecei
     else if (method == L"restore") {
         win->restore(param, result);
     }
+    else if (method == L"selectImage") {
+        handleSelectImage(args, result);
+    }
     auto resultStr = result.Stringify();
     webview->PostWebMessageAsJson(resultStr.data());
     return S_OK;
@@ -99,7 +108,12 @@ HRESULT Page::onRequest(ICoreWebView2* webview, ICoreWebView2WebResourceRequeste
     size_t end = (queryPos != std::wstring::npos) ? queryPos : url.length();
     std::wstring resName = url.substr(22, end - 22); //22是“https://app.localhost/”的长度
     HRSRC hRes = FindResource(NULL, resName.data(), RT_RCDATA);
-    if (!hRes) return S_OK;
+    if (!hRes) {
+        // 内嵌资源未命中时，回退到数据目录：读取 dataPath/<resName> 同名文件
+        auto hr = serveFileFromDataPath(args, resName);
+        // 文件也不存在时保持默认请求失败行为（不 put_Response，让上层按 404 处理）
+        return hr == S_OK ? S_OK : hr;
+    }
     HGLOBAL hData = LoadResource(NULL, hRes);
     if (!hData) return S_OK;
     void* pData = LockResource(hData);
@@ -143,4 +157,72 @@ std::wstring Page::getContentType(const std::wstring& fileName)
         return it->second;
     }
     return L"Content-Type: application/octet-stream";
+}
+
+HRESULT Page::saveImageToDataPath(const std::wstring& srcPath, std::wstring& outSavedPath)
+{
+    auto dir = Env::getDataPath();
+    std::error_code ec;
+    std::filesystem::create_directories(dir, ec);
+    if (ec) return E_FAIL;
+
+    // 唯一文件名：img_<秒时间戳>_<随机数>，保留源文件扩展名
+    auto ext = std::filesystem::path(srcPath).extension().wstring();
+    static std::mt19937 rng{ static_cast<unsigned>(std::time(nullptr)) };
+    unsigned long long ts = static_cast<unsigned long long>(std::chrono::system_clock::now().time_since_epoch().count());
+    auto name = L"img_" + std::to_wstring(ts) + L"_" + std::to_wstring(rng()) + ext;
+    auto dest = dir / name;
+
+    std::filesystem::copy_file(srcPath, dest, std::filesystem::copy_options::overwrite_existing, ec);
+    if (ec) return E_FAIL;
+
+    outSavedPath = dest.wstring();
+    return S_OK;
+}
+
+HRESULT Page::serveFileFromDataPath(ICoreWebView2WebResourceRequestedEventArgs* args, const std::wstring& resName)
+{
+    auto filePath = Env::getDataPath() / resName;
+    std::error_code ec;
+    auto sz = std::filesystem::file_size(filePath, ec);
+    if (ec) return S_FALSE; // 文件不存在，交由调用方决定
+    std::ifstream f(filePath, std::ios::binary);
+    std::string bytes((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+    if (bytes.empty()) return S_FALSE;
+    ComPtr<IStream> stream = SHCreateMemStream((const BYTE*)bytes.data(), (UINT)bytes.size());
+    auto ct = getContentType(resName);
+    ComPtr<ICoreWebView2WebResourceResponse> response;
+    Env::getWebViewEnv()->CreateWebResourceResponse(stream.Get(), 200, L"OK", ct.data(), &response);
+    args->put_Response(response.Get());
+    return S_OK;
+}
+
+HRESULT Page::handleSelectImage(ICoreWebView2WebMessageReceivedEventArgs* args, JsonObject& result)
+{
+    ComPtr<ICoreWebView2WebMessageReceivedEventArgs2> args2;
+    if (FAILED(args->QueryInterface(IID_PPV_ARGS(&args2)))) return S_FALSE;
+
+    ComPtr<ICoreWebView2ObjectCollectionView> objs;
+    args2->get_AdditionalObjects(&objs);
+    UINT32 count = 0;
+    objs->get_Count(&count);
+    if (count == 0) return S_FALSE;
+
+    ComPtr<ICoreWebView2File> file;
+    objs->GetValueAtIndex(0, &file);
+    PWSTR rawPath = nullptr;
+    file->get_Path(&rawPath);
+    if (!rawPath) return S_FALSE;
+
+    std::wstring srcPath(rawPath);
+    CoTaskMemFree(rawPath);
+
+    std::wstring savedPath;
+    auto hr = saveImageToDataPath(srcPath, savedPath);
+    if (SUCCEEDED(hr)) {
+        result.SetNamedValue(L"result", JsonValue::CreateStringValue(L"https://app.localhost/" + std::filesystem::path(savedPath).filename().wstring()));
+        return S_OK;
+    }
+    result.SetNamedValue(L"error", JsonValue::CreateStringValue(L"保存图片失败"));
+    return S_FALSE;
 }

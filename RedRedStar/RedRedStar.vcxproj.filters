@@ -27,6 +27,9 @@
     <ClCompile Include="Page.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="SQLite\sqlite3.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
@@ -42,6 +45,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="Page.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="SQLite\sqlite3.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

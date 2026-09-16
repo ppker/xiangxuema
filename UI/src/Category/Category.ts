@@ -27,6 +27,10 @@ const TEST_CATEGORIES: CategoryNode[] = [
     { id: 31, name: "饮食" },
     { id: 32, name: "旅行" },
   ]},
+  { id: 3, name: "生活", children: [
+    { id: 31, name: "饮食" },
+    { id: 32, name: "旅行" },
+  ]}
 ];
 
 /**

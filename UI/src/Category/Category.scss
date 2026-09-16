@@ -52,9 +52,22 @@
   pointer-events: none;
 }
 
+/* 顶层分类的 label 在最左侧画纵向虚线。
+   用 border-left 而非伪元素：border 画在 label 左侧、垂直居中且高度为一行，
+   三个顶层 label 的边界彼此贴合，连成一条贯穿的第一级纵向虚线。
+   用类选择器作用于所有顶层 label（无论数据来源是数据库还是测试数据）。 */
+.categoryTree > .categoryNode > .categoryLabel {
+  border-left: 1px dashed #9aa1a9;
+}
+
 /* 顶层分类没有上级，不画横向虚线 */
 .categoryTree > .categoryNode::after {
   display: none;
+}
+
+/* 顶层节点的纵向线由 label 的 border-left 承担，故不再用 ::before 画左缘竖线 */
+.categoryTree > .categoryNode::before {
+  border-left: none;
 }
 
 .categoryLabel {

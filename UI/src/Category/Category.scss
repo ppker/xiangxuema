@@ -35,35 +35,35 @@
   left: 0;
   top: 0;
   bottom: 0;
-  border-left: 1px dashed #c6cbd1;
+  border-left: 1px dashed #9aa1a9;
   pointer-events: none;
 }
 
-/* 横向虚线：从父节点纵向虚线（在本节点左侧一条虚线宽处）接到本节点文字前方。
-   宽度为两条虚线宽（-dd → +dd），恰好把父纵线连到本层文字；
-   纵向定位在标签高度一半处，保证横线落在文字垂直中心。 */
+/* 横向虚线：识图与父节点纵向虚线同列的横线，接到本节点文字前方。
+   起点即本节点左缘（等于上一级纵向虚线的横坐标，不再向左多缩一级），
+   横向延伸一条虚线宽即触及文字；纵向定位在标签高度一半处，保证落在文字垂直中心。 */
 .categoryNode::after {
   content: "";
   position: absolute;
-  left: calc(-1 * var(--dd));
+  left: 0;
   top: calc(var(--label-height) / 2);
-  width: calc(2 * var(--dd));
-  border-bottom: 1px dashed #c6cbd1;
+  width: var(--dd);
+  border-bottom: 1px dashed #9aa1a9;
   pointer-events: none;
 }
 
-/* 顶层节点没有父纵线：改为从自身纵线向右横向接出（|--） */
+/* 顶层分类没有上级，不画横向虚线 */
 .categoryTree > .categoryNode::after {
-  left: 0;
-  width: var(--dd);
+  display: none;
 }
 
 .categoryLabel {
   display: flex;
   align-items: center;
   height: var(--label-height);
+  padding-left: 4px;
   font-size: 13px;
-  color: #333;
+  color: #1f2329;
   cursor: pointer;
   white-space: nowrap;
   overflow: hidden;
@@ -76,7 +76,7 @@
 
 .categoryLabel.selected {
   background: #d3e3fd;
-  color: #0069cc;
+  color: #0056b3;
 }
 
 .categoryChildren {

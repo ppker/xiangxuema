@@ -1,6 +1,7 @@
 import "./Category.scss";
 import html from "./Category.html?raw";
 import CtrlBase from "../CtrlBase";
+import Msg from "../Msg";
 
 /** 分类节点 */
 interface CategoryNode {
@@ -10,33 +11,18 @@ interface CategoryNode {
   children?: CategoryNode[];
 }
 
-/* 测试数据：组织一个两级树形分类，后续替换为从数据库读取 */
-const TEST_CATEGORIES: CategoryNode[] = [
-  { id: 1, name: "工作", children: [
-    { id: 11, name: "项目文档" },
-    { id: 12, name: "会议纪要" },
-  ]},
-  { id: 2, name: "学习", children: [
-    { id: 21, name: "编程" },
-    { id: 22, name: "英语", children: [
-      { id: 221, name: "词汇" },
-      { id: 222, name: "听力" },
-    ]},
-  ]},
-  { id: 3, name: "生活", children: [
-    { id: 31, name: "饮食" },
-    { id: 32, name: "旅行" },
-  ]},
-  { id: 3, name: "生活", children: [
-    { id: 31, name: "饮食" },
-    { id: 32, name: "旅行" },
-  ]}
-];
+/** 原生侧返回的扁平分类行 */
+interface CategoryRow {
+  id: number;
+  parentId: number | null;
+  name: string;
+}
 
 /**
  * 左侧分类目录面板（模块单例）。
  * 面板即 #category 自身，由 ContentBox 挂到分栏槽位。
- * 以原生 DOM 递归渲染 ul/li 树形分类，支持点击展开/收起子分类。
+ * 启动时通过 Msg 请求原生侧从数据库读取分类，再以原生 DOM 递归渲染 ul/li 树形分类，
+ * 支持点击展开/收起子分类。
  */
 class Category extends CtrlBase {
   constructor() {
@@ -44,7 +30,40 @@ class Category extends CtrlBase {
   }
 
   override ready(): void {
-    this.renderTree(TEST_CATEGORIES);
+    void this.loadAndRender();
+  }
+
+  /** 请求原生侧读取分类，并把扁平数据组织成树后渲染 */
+  private async loadAndRender(): Promise<void> {
+    try {
+      const data = await Msg.invoke("getCategories");
+      const rows: CategoryRow[] = (data as { categories?: CategoryRow[] }).categories ?? [];
+      this.renderTree(Category.toTree(rows));
+    } catch {
+      // 读取失败时渲染空树，避免阻塞其余面板
+      this.renderTree([]);
+    }
+  }
+
+  /** 把原生侧返回的扁平分类行组织成多级树（保持传入顺序，父在前） */
+  private static toTree(rows: CategoryRow[]): CategoryNode[] {
+    const byId = new Map<number, CategoryNode>();
+    for (const row of rows) {
+      byId.set(row.id, { id: row.id, name: row.name });
+    }
+    const roots: CategoryNode[] = [];
+    // 按行顺序把节点挂到父节点 children
+    for (const row of rows) {
+      const node = byId.get(row.id)!;
+      if (row.parentId != null && byId.has(row.parentId)) {
+        const parent = byId.get(row.parentId)!;
+        parent.children ??= [];
+        parent.children.push(node);
+      } else {
+        roots.push(node);
+      }
+    }
+    return roots;
   }
 
   /** 递归构建分类树 DOM，挂到 #category */

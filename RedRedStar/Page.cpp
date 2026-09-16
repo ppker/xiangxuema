@@ -1,6 +1,7 @@
 ﻿#include "Env.h"
 #include "Page.h"
 #include "Window.h"
+#include "Db.h"
 
 #include <fstream>
 #include <random>
@@ -72,6 +73,12 @@ HRESULT Page::onMsgReceived(ICoreWebView2* webview, ICoreWebView2WebMessageRecei
     }
     else if (method == L"selectImage") {
         handleSelectImage(args, result);
+    }
+    else if (method == L"getCategories") {
+        // 返回数据放进名为 result 的字段，前端 Msg.resolve(msg.result) 才能取到
+        JsonObject payload;
+        payload.SetNamedValue(L"categories", Db::loadCategories());
+        result.SetNamedValue(L"result", payload);
     }
     auto resultStr = result.Stringify();
     webview->PostWebMessageAsJson(resultStr.data());

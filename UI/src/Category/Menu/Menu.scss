@@ -1,0 +1,72 @@
+/* 分类右键菜单。
+   挂到 document.body 上、不是 #category 的后代：那个容器 overflow-y:auto，
+   弹层放在里面会被滚动容器裁掉。尺寸、边框、阴影与工具栏下拉面板保持一致。 */
+#categoryMenu {
+  position: fixed;
+  z-index: 1000;
+  display: none;
+  background: #fff;
+  border: 1px solid #e5e6eb;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  font-size: 13px;
+  user-select: none;
+}
+
+#categoryMenu.open {
+  display: block;
+}
+
+/* 菜单项：图标槽 + 文字，横向排布、占满整行，hover 背景横向贯通 */
+#categoryMenu .menuItem {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  padding-right: 18px;
+  color: #1f2329;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+#categoryMenu .menuItem:hover {
+  background: #e8ecf4;
+  color: #0069cc;
+}
+
+/* 图标槽（模板里 .icon 的外层 div）。
+   注意 iconfont.css 的 .icon 也会命中这个 div（字形在内层 <i> 上），
+   所以字号、行高都显式写死，不靠继承。
+   宽度固定 14px：比字形略宽，三个菜单项的文字左边缘才能对齐；
+   高度取 1em，字形在槽里居中。字号走变量，删除项可以单独调小。 */
+#categoryMenu .menuItem > .iconBox {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 29px;
+  height: 32px;
+  line-height: 32px;
+}
+
+/* 内层字形：只出字形，尺寸跟着上面的槽走。
+   font-size: inherit 是为了压回 iconfont.css 里 .icon 的 16px */
+#categoryMenu .menuItem > .iconBox > i {
+  font-size: 13px;
+  line-height: 32px;
+  transform: translateY(1px);
+}
+
+/* 菜单文字：不换行，长分类名也保持一行，整条菜单靠 min-width 撑开 */
+#categoryMenu .menuItemLabel {
+  white-space: nowrap;
+}
+
+/* 删除项：红字；关闭叉字形本身偏大，字号小一号 */
+#categoryMenu .menuItemDanger {
+  i {
+    font-size: 12px !important;
+  }
+}
+
+#categoryMenu .menuItemDanger:hover {
+  background: #fdeceb;
+  color: #e81123;
+}

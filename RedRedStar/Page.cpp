@@ -1,4 +1,4 @@
-﻿#include "Env.h"
+#include "Env.h"
 #include "Page.h"
 #include "Window.h"
 #include "Db.h"
@@ -78,6 +78,20 @@ HRESULT Page::onMsgReceived(ICoreWebView2* webview, ICoreWebView2WebMessageRecei
         // 返回数据放进名为 result 的字段，前端 Msg.resolve(msg.result) 才能取到
         JsonObject payload;
         payload.SetNamedValue(L"categories", Db::loadCategories());
+        result.SetNamedValue(L"result", payload);
+    }
+    else if (method == L"getArticleTitles") {
+        // 同上：只给标题，不带正文，也不分页。
+        // args.categoryId 可选：不传（或不是数字）表示没有选中分类，加载全部
+        sqlite3_int64 categoryId = -1;
+        if (param.HasKey(L"args") && param.GetNamedValue(L"args").ValueType() == JsonValueType::Object) {
+            JsonObject args = param.GetNamedObject(L"args");
+            if (args.HasKey(L"categoryId") && args.GetNamedValue(L"categoryId").ValueType() == JsonValueType::Number) {
+                categoryId = static_cast<sqlite3_int64>(args.GetNamedNumber(L"categoryId"));
+            }
+        }
+        JsonObject payload;
+        payload.SetNamedValue(L"articles", Db::loadArticleTitles(categoryId));
         result.SetNamedValue(L"result", payload);
     }
     auto resultStr = result.Stringify();

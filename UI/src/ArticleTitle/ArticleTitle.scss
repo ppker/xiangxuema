@@ -5,4 +5,44 @@
   background: #fafafa;
 
   border-right: 1px solid #e5e6eb;
+  user-select: none;
+}
+
+/* 文章标题列表：一行一篇 = 标题（过长省略）+ 右侧更新时间（这一版不显示正文） */
+.articleList {
+  list-style: none;
+  margin: 0;
+  padding: 6px 0;
+}
+
+.articleItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 28px;
+  padding: 0 10px;
+  font-size: 13px;
+  color: #1f2329;
+  cursor: pointer;
+}
+
+.articleItem:hover {
+  background: #e8ecf4;
+}
+
+/* 标题：占满剩余宽度，过长截断成省略号。
+   min-width: 0 是 flex 子项能触发省略号的前提，缺了它只会撑破容器 */
+.articleItemTitle {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 更新时间：不参与压缩，始终靠右完整显示 */
+.articleItemTime {
+  flex: none;
+  font-size: 12px;
+  color: #9aa1a9;
 }

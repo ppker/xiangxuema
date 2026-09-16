@@ -1,5 +1,7 @@
 ﻿#include <WebView2EnvironmentOptions.h>
 
+#include <system_error>
+
 #include "Env.h"
 #include "Window.h"
 #include "Db.h"
@@ -14,7 +16,8 @@ void Env::init()
 	env->checkRuntimeVersion();
     env->initDataPath();
     if (!Db::init()) {
-        MessageBox(nullptr, L"数据库初始化失败", L"系统提示", MB_OK);
+        auto msg = std::wstring{ L"数据库初始化失败\n\n" } + Db::lastError();
+        MessageBox(nullptr, msg.c_str(), L"系统提示", MB_OK);
         ExitProcess(-1);
     }
     env->initWebViewEnv();
@@ -96,11 +99,26 @@ winrt::Windows::System::DispatcherQueue& Env::getDispatcherQueue()
 
 void Env::initDataPath()
 {
-    PWSTR pathTmp;
+    PWSTR pathTmp = nullptr;
     auto hr = SHGetKnownFolderPath(FOLDERID_RoamingAppData, 0, nullptr, &pathTmp);
+    if (FAILED(hr) || pathTmp == nullptr) {
+        MessageBox(nullptr, L"无法获取应用数据目录", L"系统提示", MB_OK);
+        ExitProcess(-1);
+    }
     dataPath.assign(pathTmp);
     CoTaskMemFree(pathTmp);
-    dataPath.append("RedRedStar");
+    dataPath /= L"RedRedStar";
+
+    // 必须显式创建：sqlite3_open16 只会创建 db.db 文件，不会创建父目录；
+    // WebView2 虽然也会建 userDataFolder，但它排在 Db::init 之后，指望不上。
+    std::error_code ec;
+    std::filesystem::create_directories(dataPath, ec);
+    if (ec) {
+        auto msg = L"无法创建应用数据目录\n\n" + dataPath.wstring()
+            + L"\n\nerror_code = " + std::to_wstring(ec.value());
+        MessageBox(nullptr, msg.c_str(), L"系统提示", MB_OK);
+        ExitProcess(-1);
+    }
 }
 
 void Env::initWebViewEnv()

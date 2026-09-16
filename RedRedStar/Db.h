@@ -2,6 +2,7 @@
 #include "SQLite/sqlite3.h"
 #include <filesystem>
 #include <memory>
+#include <string>
 #include <winrt/Windows.Data.Json.h>
 #include <winrt/Windows.Foundation.Collections.h> // 提供 IVector::Append 的定义，避免 C3779
 
@@ -21,10 +22,18 @@ public:
 	static sqlite3* get();
 	/// 写入文章分类测试数据（仅当分类表为空时）
 	static void seedCategories();
+	/// 写入文章测试数据（仅当文章表为空时）；按分类名字关联，库里没有的分类直接跳过
+	static void seedArticles();
 	/// 读取全部分类，按 parent_id / sort_order / id 返回扁平数组
 	/// 每项：{ "id": <int>, "parentId": <int|null>, "name": <string> }
 	/// 顶层分类的 parentId 为 null。
 	static JsonArray loadCategories();
+	/// 读取文章标题（不查正文），按 id 升序
+	/// 每项：{ "id": <int>, "title": <string>, "categoryId": <int|null>, "updatedAt": "YYYY-MM-DD HH:MM:SS" }
+	/// categoryId < 0 表示不过滤；否则连子分类一起算（选中父分类也能看到其下文章）
+	static JsonArray loadArticleTitles(sqlite3_int64 categoryId = -1);
+	/// 最近一次失败的原因（sqlite 原文），供启动期提示使用；成功时为空
+	static const std::wstring& lastError();
 private:
 	Db() = default;
 	bool open();
@@ -33,4 +42,5 @@ private:
 private:
 	sqlite3* conn = nullptr;
 	bool ready = false;
+	std::wstring lastErrorText;
 };

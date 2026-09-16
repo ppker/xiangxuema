@@ -8,6 +8,51 @@
   user-select: none;
 }
 
+/* 标题栏：左侧“文章分类”，右侧加号按钮 */
+/* 标题栏：左侧“文章分类”，右侧加号按钮；吸顶，树滚动时标题保持可见 */
+#categoryHeader {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: #f4f4f5;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 36px;
+  padding: 0 10px;
+  border-bottom: 1px solid #e5e6eb;
+}
+
+#categoryTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f2329;
+  white-space: nowrap;
+}
+
+#addCategoryBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  color: #4b5563;
+  cursor: pointer;
+}
+
+#addCategoryBtn .icon {
+  font-size: 14px;
+}
+
+#addCategoryBtn:hover {
+  background: #e8ecf4;
+  color: #0069cc;
+}
+
 .categoryTree {
   list-style: none;
   margin: 0;

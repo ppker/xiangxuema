@@ -2,16 +2,16 @@
 #include "winres.h"
 #undef APSTUDIO_READONLY_SYMBOLS
 
-// Ç¶ÈëµÄÇ°¶Ë×ÊÔ´ÎÄ¼þ
-index.html RCDATA "UI/index.html"
-index.js RCDATA "UI/index.js"
-iconfont.css RCDATA "UI/iconfont.css"
-iconfont.ttf RCDATA "UI/iconfont.ttf"
-// Ç¶ÈëµÄÓ¦ÓÃ³ÌÐòÍ¼±ê
+// Ç¶ï¿½ï¿½ï¿½Ç°ï¿½ï¿½ï¿½ï¿½Ô´ï¿½Ä¼ï¿½
+// index.html RCDATA "UI/index.html"
+// index.js RCDATA "UI/index.js"
+// iconfont.css RCDATA "UI/iconfont.css"
+// iconfont.ttf RCDATA "UI/iconfont.ttf"
+// Ç¶ï¿½ï¿½ï¿½Ó¦ï¿½Ã³ï¿½ï¿½ï¿½Í¼ï¿½ï¿½
 //100 ICON "logo.ico"
 
 VS_VERSION_INFO VERSIONINFO
-// ÅäÖÃ¿ÉÖ´ÐÐÎÄ¼þ°æ±¾ºÅ
+// ï¿½ï¿½ï¿½Ã¿ï¿½Ö´ï¿½ï¿½ï¿½Ä¼ï¿½ï¿½æ±¾ï¿½ï¿½
 FILEVERSION 0, 0, 1, 0
 PRODUCTVERSION 0, 0, 1, 0
 FILEFLAGSMASK 0x3fL
@@ -28,7 +28,7 @@ BEGIN
 	BEGIN
 		BLOCK "080404b0"
 		BEGIN
-			// ÅäÖÃ¿ÉÖ´ÐÐÎÄ¼þ²úÆ·ÐÅÏ¢
+			// ï¿½ï¿½ï¿½Ã¿ï¿½Ö´ï¿½ï¿½ï¿½Ä¼ï¿½ï¿½ï¿½Æ·ï¿½ï¿½Ï¢
 			VALUE "CompanyName", "GitHub xland"
 			VALUE "FileDescription", "WebView2Demo"
 			VALUE "FileVersion", "0.0.1.0"

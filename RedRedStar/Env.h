@@ -28,6 +28,7 @@ private:
 	void checkRuntimeVersion();
 	bool checkRegKey(const HKEY& key, const std::wstring& subKey);
 	void initDataPath();
+	void initGdiplus();
 	void initWebViewEnv();
 	static void initDispatcherQueueCtrl();
 	HRESULT onEnvReady(HRESULT result, ICoreWebView2Environment* env);
@@ -36,5 +37,6 @@ private:
 	ComPtr<ICoreWebView2Environment> webViewEnv;
 	std::unique_ptr<Window> mainWindow;
 	winrt::Windows::System::DispatcherQueue dq;
+	ULONG_PTR gdiplusToken{};
 };
 

@@ -57,7 +57,8 @@ void WindowSite::createWin()
 	RegisterClassEx(&wcex);
 	// 位置 (350,350) 错开主窗口的 (200,300)；1200x800 与主窗口一致；WS_OVERLAPPEDWINDOW 自带
 	// 标准标题栏、最小化/最大化/关闭按钮、可拖动改大小，所以不再像主窗口那样自绘/扩展 DWM 边框。
-	hwnd = CreateWindowEx(0, wcex.lpszClassName, wcex.lpszClassName, WS_OVERLAPPEDWINDOW,
+	// 标题先用 url 兜底，网页加载完成后由 PageSite::onTitleChange 换成 document.title
+	hwnd = CreateWindowEx(0, wcex.lpszClassName, url.c_str(), WS_OVERLAPPEDWINDOW,
 		350, 350, 1200, 800, nullptr, nullptr, wcex.hInstance, nullptr);
 	SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
 	// 打开即最大化：site 窗口是给发布平台用的，需要尽可能大的可视区，省得用户再去点最大化按钮

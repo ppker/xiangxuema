@@ -1,6 +1,6 @@
 @font-face {
   font-family: "icon"; /* Project id 1378132 */
-  src: url('iconfont.woff2?t=1789529058426') format('woff2');
+  src: url('iconfont.woff2?t=1789613349867') format('woff2');
 }
 
 .icon {
@@ -9,6 +9,10 @@
   font-style: normal;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+.icon-edit:before {
+  content: "\e631";
 }
 
 .icon-user:before {

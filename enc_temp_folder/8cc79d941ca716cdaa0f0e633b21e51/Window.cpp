@@ -32,6 +32,16 @@ LRESULT Window::winMsg(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
     else if (msg == WM_GETMINMAXINFO) {
         self->onGetMinMaxInfo((PMINMAXINFO)lParam);
     }
+    else if (msg == WM_SYSCOMMAND) {
+        // WS_POPUP 窗口默认不响应任务栏图标的最小化（DefWindowProc 对 WS_POPUP 不处理
+        // SC_MINIMIZE，所以点任务栏图标时窗口不会最小化）。这里自己处理，走与 JS 主动
+        // 调用 minimize() 相同的路径，保持 webview 的清理一致。
+        if ((wParam & 0xFFF0) == SC_MINIMIZE) {
+            JsonObject params, result;
+            self->minimize(params, result);
+            return 0;
+        }
+    }
     return DefWindowProc(hwnd, msg, wParam, lParam);
 }
 

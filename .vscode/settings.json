@@ -1,0 +1,23 @@
+{
+  // ── 保存即格式化 ──────────────────────────────────────────────
+  // 统一交给 Prettier（配置见 UI/.prettierrc.json）。
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+
+  // 只格式化"能找到 Prettier 配置文件"的文件：
+  // UI/ 下的前端文件会命中 UI/.prettierrc.json；
+  // RedRedStar/ 下的 C++ 源码没有配置，不会被误格式化。
+  "prettier.requireConfig": true,
+  // 用仓库里的 prettier 版本，保证和命令行/CI 的结果一致
+  "prettier.useEditorConfig": false,
+
+  // 各语言显式指定，避免被其它格式化插件抢走
+  "[typescript]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[javascript]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[html]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[css]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[scss]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[json]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[jsonc]": { "editor.defaultFormatter": "esbenp.prettier-vscode" },
+  "[markdown]": { "editor.defaultFormatter": "esbenp.prettier-vscode" }
+}

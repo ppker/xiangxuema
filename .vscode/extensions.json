@@ -1,0 +1,4 @@
+{
+  // 打开这个工作区时提示安装的插件：Prettier 负责保存时的代码格式化
+  "recommendations": ["esbenp.prettier-vscode"]
+}

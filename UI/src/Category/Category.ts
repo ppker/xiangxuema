@@ -83,14 +83,14 @@ class Category extends CtrlBase {
       Menu.open(e.clientX, e.clientY, node);
     });
 
-    // 标题栏右侧的加号：新增顶层分类
-    Header.onAddClick = (at) => this.openEditor(null, "top", at);
+    // 标题栏右侧的加号：新增顶层分类（弹层始终在按钮正下方）
+    Header.onAddClick = (anchor) => this.openEditor(null, "top", anchor);
 
-    // 右键菜单的动作
-    Menu.onAction = (action, node, at) => {
-      if (action === "addSibling") this.openEditor(node, "sibling", at);
-      else if (action === "addChild") this.openEditor(node, "child", at);
-      else if (action === "rename") this.openEditor(node, "rename", at);
+    // 右键菜单的动作：锚点是被右键的那个分类行（弹层贴在它下方，放不下向上翻折）
+    Menu.onAction = (action, node, anchor) => {
+      if (action === "addSibling") this.openEditor(node, "sibling", anchor);
+      else if (action === "addChild") this.openEditor(node, "child", anchor);
+      else if (action === "rename") this.openEditor(node, "rename", anchor);
       else if (action === "remove") void this.removeCategory(node);
     };
 
@@ -98,21 +98,26 @@ class Category extends CtrlBase {
   }
 
   /**
-   * 打开分类编辑器（贴在鼠标位置弹出，和右键菜单一样）。
+   * 打开分类编辑器（贴到触发它的锚点弹出）。
    * target 是参照分类（右键的那个节点），mode 决定提交时写到哪：
    *   top     标题栏加号        → 新建顶层分类
    *   sibling 右键"增加同级分类" → 与 target 同级
    *   child   右键"增加子级分类" → 作为 target 的子分类
    *   rename  右键"修改分类"     → 把 target 改成输入的名字（输入框里预填原名）
+   * anchor 是锚点：标题栏按钮（始终在下方）或被右键的分类行（下方放不下向上翻折）。
    */
-  private openEditor(target: HTMLElement | null, mode: EditorMode, at: { x: number; y: number }): void {
+  private openEditor(
+    target: HTMLElement | null,
+    mode: EditorMode,
+    anchor: { rect: DOMRect; mayFlip: boolean },
+  ): void {
     this.editorTarget = target;
     this.editorMode = mode;
     const placeholder =
       mode === "top" ? "新分类名称" :
       mode === "sibling" ? "同级分类名称" :
       mode === "child" ? "子分类名称" : "分类名称";
-    Editor.open(at.x, at.y, { value: mode === "rename" ? Category.nameOf(target) : "", placeholder }, (result) => {
+    Editor.open(anchor, { value: mode === "rename" ? Category.nameOf(target) : "", placeholder }, (result) => {
       // 传局部的 mode/target：请求期间用户可能又开了编辑器，字段会被改写
       void this.applyEditorResult(mode, target, result.name);
     });

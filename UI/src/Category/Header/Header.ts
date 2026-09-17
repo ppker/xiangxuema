@@ -8,8 +8,8 @@ import CtrlBase from "../../CtrlBase";
  * 右侧“添加分类”按钮只在这里转发点击，具体做什么由 Category 接到 onAddClick 上。
  */
 class Header extends CtrlBase {
-  /** 右侧加号被点击时的回调，由 Category 注册；带点击位置（弹层要贴鼠标） */
-  onAddClick: ((at: { x: number; y: number }) => void) | null = null;
+  /** 右侧加号被点击时的回调，由 Category 注册；带按钮锚点（弹层始终定位在按钮正下方） */
+  onAddClick: ((anchor: { rect: DOMRect; mayFlip: boolean }) => void) | null = null;
 
   constructor() {
     super(html);
@@ -17,7 +17,8 @@ class Header extends CtrlBase {
 
   override ready(): void {
     this.dom.querySelector<HTMLElement>("#addCategoryBtn")?.addEventListener("click", (e) => {
-      this.onAddClick?.({ x: e.clientX, y: e.clientY });
+      const el = e.currentTarget as HTMLElement;
+      this.onAddClick?.({ rect: el.getBoundingClientRect(), mayFlip: false });
     });
   }
 }

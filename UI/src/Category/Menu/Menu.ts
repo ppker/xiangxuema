@@ -13,8 +13,10 @@ class Menu extends CtrlBase {
   /** 被右键的分类节点；将来增删分类要靠它定位（对外可读，方便后续接线） */
   target: HTMLElement | null = null;
 
-  /** 菜单项被点击时的回调，由 Category 注册；带上被右键的节点和点击位置（弹层要贴鼠标） */
-  onAction: ((action: string, target: HTMLElement | null, at: { x: number; y: number }) => void) | null = null;
+  /** 菜单项被点击时的回调，由 Category 注册；带上被右键的节点和锚点
+   *  （锚点是被右键的那个分类行 .categoryLabel 的包围盒，视口坐标，调用前已采集好） */
+  onAction: ((action: string, target: HTMLElement | null, anchor: { rect: DOMRect; mayFlip: boolean }) => void) | null =
+    null;
 
   constructor() {
     super(html);
@@ -25,12 +27,18 @@ class Menu extends CtrlBase {
     this.dom.addEventListener("click", (e) => {
       const item = (e.target as HTMLElement).closest<HTMLElement>("[data-action]");
       if (!item) return;
-      // 先收菜单再回调：回调里会弹编辑器，菜单不该还留在下面
+      // 先收菜单再回调：回调里会弹编辑器，菜单不该还留在下面。
+      // 锚点取被右键的那个分类行（.categoryLabel），不是被点的菜单项：
+      // 编辑器要贴在分类正下方、与分类左对齐，菜单项只是触发它的入口。
+      // 采集必须在 close() 之前——虽然分类行不受菜单显隐影响，
+      // 但统一在关菜单前量好，避免回调期间布局变动导致量到的位置失真。
+      // 万一没拿到分类行（理论上不会），退回用菜单项自己，保证弹层仍有锚点。
       const action = item.dataset.action ?? "";
       const target = this.target;
-      const at = { x: e.clientX, y: e.clientY };
+      const anchorEl = target?.querySelector<HTMLElement>(":scope > .categoryLabel") ?? item;
+      const anchor = { rect: anchorEl.getBoundingClientRect(), mayFlip: true };
       this.close();
-      this.onAction?.(action, target, at);
+      this.onAction?.(action, target, anchor);
     });
 
     // 点空白、页面滚动、窗口失焦、Esc 都关闭

@@ -6,25 +6,31 @@ import CtrlBase from "../../CtrlBase";
  * 分类节点的右键菜单（模块单例）。
  * 平时不在 DOM 里：第一次 open() 时才把模板挂到 document.body
  * （不能挂在 #category 里，那个容器 overflow-y:auto 会把弹层裁掉），之后只切换 .open。
- * 三个菜单项的功能还没接，各自的 data-action 已经留好，动作在 ready() 的委托里统一处理。
- * 选中态属于分类行（见 Category），菜单项本身只有 hover。
+ * 三个菜单项按 data-action（addSibling / addChild / remove）报给 onAction，
+ * 具体做什么由 Category 决定；选中态属于分类行（见 Category），菜单项本身只有 hover。
  */
 class Menu extends CtrlBase {
   /** 被右键的分类节点；将来增删分类要靠它定位（对外可读，方便后续接线） */
   target: HTMLElement | null = null;
+
+  /** 菜单项被点击时的回调，由 Category 注册；带上被右键的节点和点击位置（弹层要贴鼠标） */
+  onAction: ((action: string, target: HTMLElement | null, at: { x: number; y: number }) => void) | null = null;
 
   constructor() {
     super(html);
   }
 
   override ready(): void {
-    // 菜单项统一用事件委托，将来接功能只改这一处
+    // 菜单项统一用事件委托，动作本身交给调用方处理
     this.dom.addEventListener("click", (e) => {
       const item = (e.target as HTMLElement).closest<HTMLElement>("[data-action]");
       if (!item) return;
-      // TODO: 接三个菜单项的功能，data-action 取值 addSibling / addChild / remove，
-      //       被右键的分类节点在 this.target 上
+      // 先收菜单再回调：回调里会弹编辑器，菜单不该还留在下面
+      const action = item.dataset.action ?? "";
+      const target = this.target;
+      const at = { x: e.clientX, y: e.clientY };
       this.close();
+      this.onAction?.(action, target, at);
     });
 
     // 点空白、页面滚动、窗口失焦、Esc 都关闭

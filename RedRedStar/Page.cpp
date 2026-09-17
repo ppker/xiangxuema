@@ -9,6 +9,35 @@
 #include <chrono>
 #include <filesystem>
 
+namespace
+{
+    /// 取消息里的 args 对象；没有 args、或它不是对象时返回空对象（后续 HasKey 一律 false）
+    JsonObject messageArgs(const JsonObject& param)
+    {
+        if (param.HasKey(L"args") && param.GetNamedValue(L"args").ValueType() == JsonValueType::Object)
+            return param.GetNamedObject(L"args");
+        return JsonObject{};
+    }
+
+    /// 取 args 里的数字参数；缺失或类型不对时用 fallback
+    sqlite3_int64 argNumber(const JsonObject& args, const wchar_t* key, sqlite3_int64 fallback)
+    {
+        if (!args.HasKey(key)) return fallback;
+        auto value = args.GetNamedValue(key);
+        return value.ValueType() == JsonValueType::Number
+            ? static_cast<sqlite3_int64>(value.GetNumber())
+            : fallback;
+    }
+
+    /// 取 args 里的字符串参数；缺失或类型不对时返回空串
+    std::wstring argString(const JsonObject& args, const wchar_t* key)
+    {
+        if (!args.HasKey(key)) return {};
+        auto value = args.GetNamedValue(key);
+        return value.ValueType() == JsonValueType::String ? std::wstring(value.GetString()) : std::wstring{};
+    }
+}
+
 
 
 Page::Page(Window* win, ComPtr<ICoreWebView2>& webview) :win{ win }, webview{ webview }
@@ -83,16 +112,42 @@ HRESULT Page::onMsgReceived(ICoreWebView2* webview, ICoreWebView2WebMessageRecei
     else if (method == L"getArticleTitles") {
         // 同上：只给标题，不带正文，也不分页。
         // args.categoryId 可选：不传（或不是数字）表示没有选中分类，加载全部
-        sqlite3_int64 categoryId = -1;
-        if (param.HasKey(L"args") && param.GetNamedValue(L"args").ValueType() == JsonValueType::Object) {
-            JsonObject args = param.GetNamedObject(L"args");
-            if (args.HasKey(L"categoryId") && args.GetNamedValue(L"categoryId").ValueType() == JsonValueType::Number) {
-                categoryId = static_cast<sqlite3_int64>(args.GetNamedNumber(L"categoryId"));
-            }
-        }
+        JsonObject args = messageArgs(param);
+        sqlite3_int64 categoryId = argNumber(args, L"categoryId", -1);
         JsonObject payload;
         payload.SetNamedValue(L"articles", Db::loadArticleTitles(categoryId));
         result.SetNamedValue(L"result", payload);
+    }
+    else if (method == L"addCategory") {
+        // args: { name, parentId? }；parentId 省略或 null 表示建顶层分类。
+        // 返回 { id }：前端拿它选中刚建好的分类
+        JsonObject args = messageArgs(param);
+        JsonObject payload;
+        payload.SetNamedValue(L"id", JsonValue::CreateNumberValue(
+            static_cast<double>(Db::addCategory(argString(args, L"name"), argNumber(args, L"parentId", -1)))));
+        result.SetNamedValue(L"result", payload);
+    }
+    else if (method == L"renameCategory") {
+        // args: { id, name }；返回 { ok }
+        JsonObject args = messageArgs(param);
+        JsonObject payload;
+        payload.SetNamedValue(L"ok", JsonValue::CreateBooleanValue(
+            Db::renameCategory(argNumber(args, L"id", -1), argString(args, L"name"))));
+        result.SetNamedValue(L"result", payload);
+    }
+    else if (method == L"removeCategory") {
+        // args: { id }；连子分类一起删，返回 { ok }
+        JsonObject args = messageArgs(param);
+        JsonObject payload;
+        payload.SetNamedValue(L"ok", JsonValue::CreateBooleanValue(
+            Db::removeCategory(argNumber(args, L"id", -1))));
+        result.SetNamedValue(L"result", payload);
+    }
+    else {
+        // 未知方法回一个 error：前端 Msg.invoke 会 reject，而不是静默 resolve(undefined)。
+        // 之前"原生侧改了却忘了重新编译 exe"就是被静默吞掉的，补上这条能直接暴露出来
+        std::wstring message = L"unknown method: " + std::wstring(method.c_str());
+        result.SetNamedValue(L"error", JsonValue::CreateStringValue(message));
     }
     auto resultStr = result.Stringify();
     webview->PostWebMessageAsJson(resultStr.data());

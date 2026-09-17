@@ -4,6 +4,7 @@ import CtrlBase from "../CtrlBase";
 import Msg from "../Msg";
 import Header from "./Header/Header";
 import Menu from "./Menu/Menu";
+import Editor from "./Editor/Editor";
 import ArticleTitle from "../ArticleTitle/ArticleTitle";
 
 /** 分类节点 */
@@ -21,17 +22,28 @@ interface CategoryRow {
   name: string;
 }
 
+/** 分类编辑器的打开方式：决定提交时新增到哪、或者改名 */
+type EditorMode = "top" | "sibling" | "child" | "rename";
+
 /**
  * 左侧分类目录面板（模块单例）。
  * 面板即 #category 自身，由 ContentBox 挂到分栏槽位。
  * 内部先挂 Header 标题栏，再在它下面挂分类树；
  * 启动时通过 Msg 请求原生侧从数据库读取分类，以原生 DOM 递归渲染 ul/li 树形分类。
  * 点击分工：点名称（含它的整片背景）选中/取消选中；点名称左侧的 +/− 图标展开/折叠；
- * 右键弹出 Menu 并顺手选中该分类。
+ * 右键弹出 Menu 并顺手选中该分类；Menu 里的新增/改名走 Editor，提交后写库并重画分类树；
+ * 删除分类连子树一起删，删前先确认。
  */
 class Category extends CtrlBase {
   /** 当前选中的分类行（.categoryLabel）；null 表示没有选中 */
   private selected: HTMLElement | null = null;
+
+  /** 当前选中的分类 id：重画分类树后靠它把选中还原回来 */
+  private selectedId: number | null = null;
+
+  /** 编辑器这次是给谁加的、加在哪：提交时按它决定 parent_id（对外可读，方便后续接线） */
+  editorTarget: HTMLElement | null = null;
+  editorMode: EditorMode = "top";
 
   constructor() {
     super(html);
@@ -71,7 +83,91 @@ class Category extends CtrlBase {
       Menu.open(e.clientX, e.clientY, node);
     });
 
+    // 标题栏右侧的加号：新增顶层分类
+    Header.onAddClick = (at) => this.openEditor(null, "top", at);
+
+    // 右键菜单的动作
+    Menu.onAction = (action, node, at) => {
+      if (action === "addSibling") this.openEditor(node, "sibling", at);
+      else if (action === "addChild") this.openEditor(node, "child", at);
+      else if (action === "rename") this.openEditor(node, "rename", at);
+      else if (action === "remove") void this.removeCategory(node);
+    };
+
     void this.loadAndRender();
+  }
+
+  /**
+   * 打开分类编辑器（贴在鼠标位置弹出，和右键菜单一样）。
+   * target 是参照分类（右键的那个节点），mode 决定提交时写到哪：
+   *   top     标题栏加号        → 新建顶层分类
+   *   sibling 右键"增加同级分类" → 与 target 同级
+   *   child   右键"增加子级分类" → 作为 target 的子分类
+   *   rename  右键"修改分类"     → 把 target 改成输入的名字（输入框里预填原名）
+   */
+  private openEditor(target: HTMLElement | null, mode: EditorMode, at: { x: number; y: number }): void {
+    this.editorTarget = target;
+    this.editorMode = mode;
+    const placeholder =
+      mode === "top" ? "新分类名称" :
+      mode === "sibling" ? "同级分类名称" :
+      mode === "child" ? "子分类名称" : "分类名称";
+    Editor.open(at.x, at.y, { value: mode === "rename" ? Category.nameOf(target) : "", placeholder }, (result) => {
+      // 传局部的 mode/target：请求期间用户可能又开了编辑器，字段会被改写
+      void this.applyEditorResult(mode, target, result.name);
+    });
+  }
+
+  /**
+   * 提交分类编辑器：新增或改名，完成后重新加载分类树，让列表立刻反映结果。
+   * 注意"重新加载"这一步放在 try 外面且无条件执行：不管写入成功、失败还是原生侧没回应，
+   * 都要重新拉一次分类——否则界面上看不到刚做的改动，也没法暴露真实状态。
+   */
+  private async applyEditorResult(mode: EditorMode, target: HTMLElement | null, name: string): Promise<void> {
+    // 新增成功时用返回的 id 选中刚建好的分类
+    let createdId: number | null = null;
+    try {
+      if (mode === "rename") {
+        const id = Category.nodeIdOf(target);
+        if (id != null) await Msg.invoke("renameCategory", { id, name });
+      } else {
+        // 新增：父分类看 mode —— 同级挂到 target 的父分类下，子级挂到 target 下，顶层为 null
+        const parentId =
+          mode === "child" ? Category.nodeIdOf(target) :
+          mode === "sibling" ? Category.parentIdOf(target) : null;
+        const data = (await Msg.invoke("addCategory", parentId == null ? { name } : { name, parentId })) as
+          | { id?: number }
+          | undefined;
+        const newId = data?.id;
+        if (typeof newId === "number" && newId > 0) createdId = newId;
+      }
+    } catch {
+      // 请求失败（原生侧报错或没回应）也往下走，统一刷新
+    }
+    // 不指定 id 时选中会按原 id 还原，改名后视觉不跳
+    await this.loadAndRender(createdId);
+  }
+
+  /**
+   * 删除分类，连同它的子分类一起删（原生侧用递归 CTE 删整棵子树）。
+   * 分类下的文章不删，只解除关联变成未分类，所以文章列表里它们还在。
+   * 破坏性操作，删之前先确认一下。
+   */
+  private async removeCategory(node: HTMLElement | null): Promise<void> {
+    const id = Category.nodeIdOf(node);
+    if (id == null) return;
+    const name = Category.nameOf(node) || "该分类";
+    // 用宿主浏览器的 confirm 弹窗；以后要做成应用内弹窗的话换掉这一句即可
+    const confirmed = window.confirm(`删除分类「${name}」？\n它的子分类会一起删除，分类下的文章会变成未分类。`);
+    if (!confirmed) return;
+
+    try {
+      await Msg.invoke("removeCategory", { id });
+    } catch {
+      // 删除失败也往下走：统一刷新，让列表反映数据库里的真实状态
+    }
+    // 重画后这个分类已经不存在，选中会按 id 找不到而自动落空，文章列表随之恢复全部
+    await this.loadAndRender();
   }
 
   /** 切换选中态：先摘掉旧的，再给新的戴上；传 null 即全部取消选中 */
@@ -79,8 +175,9 @@ class Category extends CtrlBase {
     this.selected?.classList.remove("selected");
     this.selected = label;
     this.selected?.classList.add("selected");
+    this.selectedId = Category.categoryIdOf(label);
     // 选中变化就通知文章列表按分类过滤；没选中任何分类时传 null，它会加载全部
-    ArticleTitle.setCategoryFilter(Category.categoryIdOf(label));
+    ArticleTitle.setCategoryFilter(this.selectedId);
   }
 
   /** 取分类行所属节点的 id；没有选中时返回 null */
@@ -89,15 +186,33 @@ class Category extends CtrlBase {
     return id ? Number(id) : null;
   }
 
-  /** 请求原生侧读取分类，并把扁平数据组织成树后渲染 */
-  private async loadAndRender(): Promise<void> {
+  /** 取节点的分类 id */
+  private static nodeIdOf(node: HTMLElement | null): number | null {
+    const id = node?.dataset.id;
+    return id ? Number(id) : null;
+  }
+
+  /** 取节点的父分类 id；顶层分类返回 null */
+  private static parentIdOf(node: HTMLElement | null): number | null {
+    // 节点在 .categoryChildren 里，往上一层 li 就是父分类
+    const parent = node?.parentElement?.closest<HTMLLIElement>(".categoryNode") ?? null;
+    return parent ? Category.nodeIdOf(parent) : null;
+  }
+
+  /** 取节点显示的名称（改名时用来预填输入框） */
+  private static nameOf(node: HTMLElement | null): string {
+    return node?.querySelector<HTMLElement>(":scope > .categoryLabel > .categoryName")?.textContent ?? "";
+  }
+
+  /** 请求原生侧读取分类，并把扁平数据组织成树后渲染；selectId 指定重画后选中哪个分类 */
+  private async loadAndRender(selectId: number | null = null): Promise<void> {
     try {
       const data = await Msg.invoke("getCategories");
       const rows: CategoryRow[] = (data as { categories?: CategoryRow[] }).categories ?? [];
-      this.renderTree(Category.toTree(rows));
+      this.renderTree(Category.toTree(rows), selectId);
     } catch {
       // 读取失败时渲染空树，避免阻塞其余面板
-      this.renderTree([]);
+      this.renderTree([], selectId);
     }
   }
 
@@ -140,14 +255,29 @@ class Category extends CtrlBase {
     toggle.classList.toggle(Category.collapsedIcon, !expanded);
   }
 
-  /** 递归构建分类树 DOM，挂到 #category */
-  private renderTree(nodes: CategoryNode[]): void {
+  /** 递归构建分类树 DOM，挂到 #category；selectId 用于指定重画后选中哪个分类 */
+  private renderTree(nodes: CategoryNode[], selectId: number | null = null): void {
+    // 新增/改名后是整棵重建，先把旧树摘掉，避免叠上去
+    this.dom.querySelector(".categoryTree")?.remove();
+    // 旧节点已经离开文档，之前记的选中引用随之失效
+    this.selected = null;
+
     const root = document.createElement("ul");
     root.className = "categoryTree";
     for (const node of nodes) {
       root.appendChild(this.buildNode(node));
     }
     this.dom.appendChild(root);
+
+    // 选中还原：优先用调用方指定的 id（新建的分类），否则沿用原来的选中；
+    // 分类已经不在了就取消选中
+    const keepId = selectId ?? this.selectedId;
+    if (keepId == null) {
+      this.applySelection(null);
+      return;
+    }
+    const label = this.dom.querySelector<HTMLElement>(`.categoryNode[data-id="${keepId}"] > .categoryLabel`);
+    this.applySelection(label);
   }
 
   /**

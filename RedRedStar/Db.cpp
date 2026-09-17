@@ -361,3 +361,74 @@ JsonArray Db::loadCategories()
     sqlite3_finalize(stmt);
     return arr;
 }
+
+sqlite3_int64 Db::addCategory(const std::wstring& name, sqlite3_int64 parentId)
+{
+    sqlite3* conn = Db::get();
+    if (!conn || name.empty()) return -1;
+
+    // sort_order 取同组最大值 +1，新分类排在这一组末尾；
+    // parent_id 用 IS 而不是 = 比较，parentId 传 NULL 时才能正确匹配顶层那一组
+    static const char* sql =
+        "INSERT INTO category (name, parent_id, sort_order)"
+        " VALUES (?1, ?2,"
+        "         COALESCE((SELECT MAX(sort_order) + 1 FROM category WHERE parent_id IS ?2), 0));";
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(conn, sql, -1, &stmt, nullptr) != SQLITE_OK) return -1;
+    sqlite3_bind_text16(stmt, 1, name.c_str(), -1, SQLITE_TRANSIENT);
+    if (parentId < 0)
+        sqlite3_bind_null(stmt, 2);
+    else
+        sqlite3_bind_int64(stmt, 2, parentId);
+    bool ok = (sqlite3_step(stmt) == SQLITE_DONE);
+    sqlite3_finalize(stmt);
+    return ok ? sqlite3_last_insert_rowid(conn) : -1;
+}
+
+bool Db::renameCategory(sqlite3_int64 id, const std::wstring& name)
+{
+    sqlite3* conn = Db::get();
+    if (!conn || id < 0 || name.empty()) return false;
+
+    static const char* sql = "UPDATE category SET name = ?2 WHERE id = ?1;";
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(conn, sql, -1, &stmt, nullptr) != SQLITE_OK) return false;
+    sqlite3_bind_int64(stmt, 1, id);
+    sqlite3_bind_text16(stmt, 2, name.c_str(), -1, SQLITE_TRANSIENT);
+    // sqlite3_changes 用来区分"改到了"和"id 不存在"
+    bool ok = (sqlite3_step(stmt) == SQLITE_DONE) && (sqlite3_changes(conn) > 0);
+    sqlite3_finalize(stmt);
+    return ok;
+}
+
+bool Db::removeCategory(sqlite3_int64 id)
+{
+    sqlite3* conn = Db::get();
+    if (!conn || id < 0) return false;
+
+    // 要删的是整棵子树。连接上没开 PRAGMA foreign_keys，
+    // 建表时写的 ON DELETE CASCADE 不会生效，所以子孙得自己用递归 CTE 取出来
+    const std::string subtree =
+        "(WITH RECURSIVE sub(id) AS ("
+        "  SELECT id FROM category WHERE id = " + std::to_string(id) +
+        "  UNION ALL"
+        "  SELECT c.id FROM category c JOIN sub s ON c.parent_id = s.id"
+        ") SELECT id FROM sub)";
+
+    // 文章不跟着删：按 schema 里 ON DELETE SET NULL 的意图，只解除关联。
+    // 两条语句包在一个事务里，避免"文章解绑了但分类没删掉"这种半截状态。
+    // id 是本地整数，拼进 SQL 没有注入问题，这样能一次 sqlite3_exec 跑完。
+    const std::string sql =
+        "BEGIN;"
+        "UPDATE article SET category_id = NULL WHERE category_id IN " + subtree + ";"
+        "DELETE FROM category WHERE id IN " + subtree + ";"
+        "COMMIT;";
+
+    if (sqlite3_exec(conn, sql.c_str(), nullptr, nullptr, nullptr) != SQLITE_OK)
+    {
+        sqlite3_exec(conn, "ROLLBACK;", nullptr, nullptr, nullptr); // 别留着半截事务
+        return false;
+    }
+    // 最后一条语句是 DELETE：影响 0 行说明这个 id 根本不存在
+    return sqlite3_changes(conn) > 0;
+}

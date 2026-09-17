@@ -1,0 +1,70 @@
+/* 分类编辑器（新增 / 修改分类）。
+   和右键菜单、工具栏的链接弹窗一样，是个定点弹层：按需挂到 document.body，
+   open(x, y) 时贴到鼠标位置、超出窗口往回收 —— 没有遮罩、也不居中。
+   规格对齐 .linkDialog（白底 + 1px 边框 + 同一支阴影）；按设计规范不加圆角。
+   z-index 盖过右键菜单（1000）与链接弹窗（1001）。 */
+#categoryEditor {
+  position: fixed;
+  z-index: 1100;
+  display: none;
+  box-sizing: border-box;
+  width: 240px;
+  padding: 10px 12px;
+  background: #fff;
+  border: 1px solid #e5e6eb;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  font-size: 13px;
+  color: #1f2329;
+}
+
+#categoryEditor.open {
+  display: block;
+}
+
+.editorInput {
+  box-sizing: border-box;
+  width: 100%;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid #c8cdd6;
+  outline: none;
+  font-size: 13px;
+  color: #1f2329;
+}
+
+.editorInput:focus {
+  border-color: #0069cc;
+}
+
+/* 按钮靠右：取消在前、主操作在后 */
+.editorActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.editorBtn {
+  height: 24px;
+  padding: 0 12px;
+  border: 1px solid #c8cdd6;
+  background: #fff;
+  color: #333333;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.editorBtn:hover {
+  background: #f2f3f5;
+}
+
+.editorBtnPrimary {
+  border-color: #0069cc;
+  background: #0069cc;
+  color: #fff;
+}
+
+.editorBtnPrimary:hover {
+  border-color: #0056b3;
+  background: #0056b3;
+}

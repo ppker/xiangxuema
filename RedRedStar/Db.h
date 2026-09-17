@@ -28,6 +28,16 @@ public:
 	/// 每项：{ "id": <int>, "parentId": <int|null>, "name": <string> }
 	/// 顶层分类的 parentId 为 null。
 	static JsonArray loadCategories();
+	/// 新增分类：parentId < 0 表示顶层；sort_order 取同组最大值 +1，排在末尾
+	/// 返回新分类的 id，失败返回 -1
+	static sqlite3_int64 addCategory(const std::wstring& name, sqlite3_int64 parentId);
+	/// 改名；成功返回 true（id 不存在或名字为空返回 false）
+	static bool renameCategory(sqlite3_int64 id, const std::wstring& name);
+	/// 删除分类，连同其全部子分类。
+	/// 注意：连接上没开 PRAGMA foreign_keys，建表时写的 ON DELETE CASCADE 不会触发，
+	/// 所以子树是在 SQL 里用递归 CTE 显式删的；分类下的文章不删，只把 category_id 置空。
+	/// 成功（且确实删到了行）返回 true
+	static bool removeCategory(sqlite3_int64 id);
 	/// 读取文章标题（不查正文），按 id 升序
 	/// 每项：{ "id": <int>, "title": <string>, "categoryId": <int|null>, "updatedAt": "YYYY-MM-DD HH:MM:SS" }
 	/// categoryId < 0 表示不过滤；否则连子分类一起算（选中父分类也能看到其下文章）

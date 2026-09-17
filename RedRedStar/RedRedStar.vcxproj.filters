@@ -24,7 +24,13 @@
     <ClCompile Include="Window.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="WindowSite.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="Page.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="PageSite.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="SQLite\sqlite3.c">
@@ -44,7 +50,13 @@
     <ClInclude Include="Window.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="WindowSite.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
     <ClInclude Include="Page.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="PageSite.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="SQLite\sqlite3.h">

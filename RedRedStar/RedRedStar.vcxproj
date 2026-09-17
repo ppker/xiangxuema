@@ -154,8 +154,10 @@
     <ClCompile Include="Env.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Page.cpp" />
+    <ClCompile Include="PageSite.cpp" />
     <ClCompile Include="SQLite\sqlite3.c" />
     <ClCompile Include="Window.cpp" />
+    <ClCompile Include="WindowSite.cpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
@@ -167,8 +169,10 @@
     <ClInclude Include="Db.h" />
     <ClInclude Include="Env.h" />
     <ClInclude Include="Page.h" />
+    <ClInclude Include="PageSite.h" />
     <ClInclude Include="SQLite\sqlite3.h" />
     <ClInclude Include="Window.h" />
+    <ClInclude Include="WindowSite.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Resource.rc" />

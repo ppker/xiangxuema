@@ -1,6 +1,7 @@
 #include "Env.h"
 #include "Page.h"
 #include "Window.h"
+#include "WindowSite.h"
 #include "Db.h"
 
 #include <fstream>
@@ -142,6 +143,15 @@ HRESULT Page::onMsgReceived(ICoreWebView2* webview, ICoreWebView2WebMessageRecei
         payload.SetNamedValue(L"ok", JsonValue::CreateBooleanValue(
             Db::removeCategory(argNumber(args, L"id", -1))));
         result.SetNamedValue(L"result", payload);
+    }
+    else if (method == L"openSite") {
+        // args: { url }；前端点"发布到 xxx"按钮时触发，新开一个 site 窗口并 navigate 到 URL。
+        // URL 由前端传入，将来加平台（知乎/CSDN/...）只改前端，native 不用动。
+        JsonObject args = messageArgs(param);
+        std::wstring url = argString(args, L"url");
+        if (!url.empty()) {
+            WindowSite::create(url);
+        }
     }
     else {
         // 未知方法回一个 error：前端 Msg.invoke 会 reject，而不是静默 resolve(undefined)。

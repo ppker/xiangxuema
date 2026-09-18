@@ -23,6 +23,9 @@ private:
 	HRESULT onCloseWindow(ICoreWebView2* sender, IUnknown* args);
 	HRESULT onTitleChange(ICoreWebView2* sender, IUnknown* args);
 	HRESULT onFaviconChange(ICoreWebView2* sender, IUnknown* args);
+	/// 注入站点脚本：把 Msg.js（DDMsg 这个 IPC 客户端）与按窗口 type 取到的同名脚本
+	/// （type "WeiXin" → WeiXin.js）拼在一起注册；必须在 Navigate 之前调，否则首屏文档赶不上
+	void injectSiteScript(ComPtr<ICoreWebView2>& webview);
 private:
 	WindowSite* win;
 	ComPtr<ICoreWebView2> webview;

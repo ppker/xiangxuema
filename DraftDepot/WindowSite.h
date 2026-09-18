@@ -9,7 +9,8 @@ class PageSite;
  *   - 窗口风格：WS_OVERLAPPEDWINDOW（自带标准标题栏、min/max/close、可拖动改大小），
  *     不像主窗口 WS_POPUP 自绘。
  *   - 业务：主 Page 承载产品功能，PageSite 只负责显示网页 + 暴露 IPC 桥。
- * 模块单例：在主 Page::onMsgReceived 收到 openSite IPC 时由 WindowSite::create(url, type) 创建。
+ * 模块单例：在主 Page::onMsgReceived 收到 openSite IPC 时由 WindowSite::create(type) 创建，
+ * 起始 URL 不再由前端传，由本类按 type + config 自己算（见 buildStartUrl）。
  * 生命周期：
  *   - 自有全局 map windowsSite 跟踪，区别于主窗口的 windows（site 窗口关闭不影响主进程退出）；
  *   - 关窗时 WebView2 自动清理 webview，PageSite 由 unique_ptr 持有。
@@ -17,26 +18,32 @@ class PageSite;
 class WindowSite
 {
 public:
-	WindowSite(const std::wstring& url, const std::wstring& type);
+	WindowSite(const std::wstring& type);
 	~WindowSite();
-	static WindowSite* create(const std::wstring& url, const std::wstring& type);
+	static WindowSite* create(const std::wstring& type);
 
 	/** 给 PageSite::onMsgReceived 调用的窗口控制（site 页面 JS 可经 IPC 调用） */
 	void minimize(const JsonObject& params, JsonObject& result);
 	void maximize(const JsonObject& params, JsonObject& result);
 	void restore(const JsonObject& params, JsonObject& result);
+	/// args: { key, value }；站点脚本（如 WeiXin.js 抓到 token）回传参数，
+	/// 与已加载的 config 比对，不同才写回 site 表并更新内存；返回 { ok, changed }
+	void setParam(const JsonObject& params, JsonObject& result);
 public:
 	HWND hwnd;
-	std::wstring url;
 	/// 站点类型，由前端 openSite 的 args.type 传入（如公众号 "WeiXin"、CSDN "CSDN"）
 	std::wstring type;
+	/// 该站点的配置：建窗时按 type 去 site 表读一次（type 对应表的 name 列），
+	/// 存成 { "<param_key>": "<param_val>" }，如 { "token": "996767730" }；
+	/// 窗口内要取配置直接读这个对象，不用再查库
+	JsonObject config;
 private:
 	static LRESULT CALLBACK winMsg(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 	void createWin();
 	HRESULT onCtrlReady(HRESULT result, ICoreWebView2Controller* ctrl);
-	/// 按站点类型把同名脚本资源注入目标网站（type "WeiXin" → JS/WeiXin.js）；
-	/// 必须在 PageSite 发起 Navigate 之前调，否则首屏文档赶不上注入
-	void injectSiteScript(ComPtr<ICoreWebView2>& webview);
+	/// 按 type + config 算出起始 URL：微信有 token 就直接进新建图文的编辑页，没有就落首页去登录；
+	/// 其他平台暂用各自的落地首页；没登记过的 type 返回空串
+	std::wstring buildStartUrl();
 	void onDestroy();
 private:
 	std::unique_ptr<PageSite> page;

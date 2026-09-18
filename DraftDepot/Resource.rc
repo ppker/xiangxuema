@@ -2,6 +2,7 @@
 #include "winres.h"
 #undef APSTUDIO_READONLY_SYMBOLS
 
+Msg.js RCDATA "JS/Msg.js"
 WeiXin.js RCDATA "JS/WeiXin.js"
 100 ICON "logo.ico"
 

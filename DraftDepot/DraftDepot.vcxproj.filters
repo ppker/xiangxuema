@@ -36,7 +36,16 @@
     <ClCompile Include="SQLite\sqlite3.c">
       <Filter>源文件</Filter>
     </ClCompile>
-    <ClCompile Include="Db.cpp">
+    <ClCompile Include="Db\Db.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Db\Category.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Db\Article.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
+    <ClCompile Include="Db\Site.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
     <ClCompile Include="Util.cpp">
@@ -69,7 +78,16 @@
     <ClInclude Include="SQLite\sqlite3.h">
       <Filter>头文件</Filter>
     </ClInclude>
-    <ClInclude Include="Db.h">
+    <ClInclude Include="Db\Db.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Db\Category.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Db\Article.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Db\Site.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="Util.h">

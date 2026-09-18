@@ -4,7 +4,7 @@
 
 #include "Env.h"
 #include "Window.h"
-#include "Db.h"
+#include "Db/Db.h"
 
 // gdiplus.h 自己不引入 windows.h，必须排在 Env.h 之后
 #include <gdiplus.h>

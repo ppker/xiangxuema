@@ -150,7 +150,10 @@
     </Manifest>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Db.cpp" />
+    <ClCompile Include="Db\Article.cpp" />
+    <ClCompile Include="Db\Category.cpp" />
+    <ClCompile Include="Db\Db.cpp" />
+    <ClCompile Include="Db\Site.cpp" />
     <ClCompile Include="Env.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Page.cpp" />
@@ -168,7 +171,10 @@
     <None Include="UI\index.js" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Db.h" />
+    <ClInclude Include="Db\Article.h" />
+    <ClInclude Include="Db\Category.h" />
+    <ClInclude Include="Db\Db.h" />
+    <ClInclude Include="Db\Site.h" />
     <ClInclude Include="Env.h" />
     <ClInclude Include="Page.h" />
     <ClInclude Include="PageSite.h" />

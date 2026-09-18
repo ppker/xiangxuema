@@ -2,44 +2,15 @@
 #include "Page.h"
 #include "Window.h"
 #include "WindowSite.h"
-#include "Db.h"
+#include "Db/Category.h"
+#include "Db/Article.h"
+#include "Util.h"
 
 #include <fstream>
 #include <random>
 #include <ctime>
 #include <chrono>
 #include <filesystem>
-
-namespace
-{
-    /// 取消息里的 args 对象；没有 args、或它不是对象时返回空对象（后续 HasKey 一律 false）
-    JsonObject messageArgs(const JsonObject& param)
-    {
-        if (param.HasKey(L"args") && param.GetNamedValue(L"args").ValueType() == JsonValueType::Object)
-            return param.GetNamedObject(L"args");
-        return JsonObject{};
-    }
-
-    /// 取 args 里的数字参数；缺失或类型不对时用 fallback
-    sqlite3_int64 argNumber(const JsonObject& args, const wchar_t* key, sqlite3_int64 fallback)
-    {
-        if (!args.HasKey(key)) return fallback;
-        auto value = args.GetNamedValue(key);
-        return value.ValueType() == JsonValueType::Number
-            ? static_cast<sqlite3_int64>(value.GetNumber())
-            : fallback;
-    }
-
-    /// 取 args 里的字符串参数；缺失或类型不对时返回空串
-    std::wstring argString(const JsonObject& args, const wchar_t* key)
-    {
-        if (!args.HasKey(key)) return {};
-        auto value = args.GetNamedValue(key);
-        return value.ValueType() == JsonValueType::String ? std::wstring(value.GetString()) : std::wstring{};
-    }
-}
-
-
 
 Page::Page(Window* win, ComPtr<ICoreWebView2>& webview) :win{ win }, webview{ webview }
 {
@@ -107,51 +78,51 @@ HRESULT Page::onMsgReceived(ICoreWebView2* webview, ICoreWebView2WebMessageRecei
     else if (method == L"getCategories") {
         // 返回数据放进名为 result 的字段，前端 Msg.resolve(msg.result) 才能取到
         JsonObject payload;
-        payload.SetNamedValue(L"categories", Db::loadCategories());
+        payload.SetNamedValue(L"categories", Category::load());
         result.SetNamedValue(L"result", payload);
     }
     else if (method == L"getArticleTitles") {
         // 同上：只给标题，不带正文，也不分页。
         // args.categoryId 可选：不传（或不是数字）表示没有选中分类，加载全部
-        JsonObject args = messageArgs(param);
-        sqlite3_int64 categoryId = argNumber(args, L"categoryId", -1);
+        JsonObject args = Util::msgArgs(param);
+        sqlite3_int64 categoryId = Util::argNumber(args, L"categoryId", -1);
         JsonObject payload;
-        payload.SetNamedValue(L"articles", Db::loadArticleTitles(categoryId));
+        payload.SetNamedValue(L"articles", Article::loadTitles(categoryId));
         result.SetNamedValue(L"result", payload);
     }
     else if (method == L"addCategory") {
         // args: { name, parentId? }；parentId 省略或 null 表示建顶层分类。
         // 返回 { id }：前端拿它选中刚建好的分类
-        JsonObject args = messageArgs(param);
+        JsonObject args = Util::msgArgs(param);
         JsonObject payload;
         payload.SetNamedValue(L"id", JsonValue::CreateNumberValue(
-            static_cast<double>(Db::addCategory(argString(args, L"name"), argNumber(args, L"parentId", -1)))));
+            static_cast<double>(Category::add(Util::argString(args, L"name"), Util::argNumber(args, L"parentId", -1)))));
         result.SetNamedValue(L"result", payload);
     }
     else if (method == L"renameCategory") {
         // args: { id, name }；返回 { ok }
-        JsonObject args = messageArgs(param);
+        JsonObject args = Util::msgArgs(param);
         JsonObject payload;
         payload.SetNamedValue(L"ok", JsonValue::CreateBooleanValue(
-            Db::renameCategory(argNumber(args, L"id", -1), argString(args, L"name"))));
+            Category::rename(Util::argNumber(args, L"id", -1), Util::argString(args, L"name"))));
         result.SetNamedValue(L"result", payload);
     }
     else if (method == L"removeCategory") {
         // args: { id }；连子分类一起删，返回 { ok }
-        JsonObject args = messageArgs(param);
+        JsonObject args = Util::msgArgs(param);
         JsonObject payload;
         payload.SetNamedValue(L"ok", JsonValue::CreateBooleanValue(
-            Db::removeCategory(argNumber(args, L"id", -1))));
+            Category::remove(Util::argNumber(args, L"id", -1))));
         result.SetNamedValue(L"result", payload);
     }
     else if (method == L"openSite") {
-        // args: { url, type }；前端点"发布到 xxx"按钮时触发，新开一个 site 窗口并 navigate 到 URL。
-        // URL 与站点类型都由前端传入：type 标的是哪个平台（公众号 "WeiXin"、CSDN "CSDN" ...），
-        // 由 WindowSite 持有，将来加平台只改前端，native 不用动。
-        JsonObject args = messageArgs(param);
-        std::wstring url = argString(args, L"url");
-        if (!url.empty()) {
-            WindowSite::create(url, argString(args, L"type"));
+        // args: { type }；前端点"发布到 xxx"按钮时触发，新开一个 site 窗口。
+        // 只传站点类型（公众号 "WeiXin"、CSDN "CSDN" ...）：打开哪个地址由 WindowSite 按 type 自己算
+        // ——微信会拿 site 表里存的 token 直接进编辑页，没 token 才落到登录首页，所以 URL 不再由前端给。
+        JsonObject args = Util::msgArgs(param);
+        std::wstring type = Util::argString(args, L"type");
+        if (!type.empty()) {
+            WindowSite::create(type);
         }
     }
     else {

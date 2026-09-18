@@ -32,3 +32,23 @@ std::tuple<void*, DWORD> Util::getRes(const std::wstring& name)
     DWORD size = SizeofResource(NULL, hRes);
     return std::make_tuple(pData, size);
 }
+JsonObject Util::msgArgs(const JsonObject& param)
+{
+    if (param.HasKey(L"args") && param.GetNamedValue(L"args").ValueType() == JsonValueType::Object)
+        return param.GetNamedObject(L"args");
+    return JsonObject{};
+}
+std::wstring Util::argString(const JsonObject& args, const wchar_t* key)
+{
+    if (!args.HasKey(key)) return {};
+    auto value = args.GetNamedValue(key);
+    return value.ValueType() == JsonValueType::String ? std::wstring(value.GetString()) : std::wstring{};
+}
+sqlite3_int64 Util::argNumber(const JsonObject& args, const wchar_t* key, sqlite3_int64 fallback)
+{
+    if (!args.HasKey(key)) return fallback;
+    auto value = args.GetNamedValue(key);
+    return value.ValueType() == JsonValueType::Number
+        ? static_cast<sqlite3_int64>(value.GetNumber())
+        : fallback;
+}

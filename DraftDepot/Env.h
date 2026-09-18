@@ -14,16 +14,19 @@ using namespace Microsoft::WRL;
 using namespace winrt::Windows::Data::Json;
 
 class Window;
+/**
+ * 进程级初始化与服务定位：init() 里的调用顺序是有依赖的（数据目录 → 数据库 → GDI+ → WebView2 环境），别随便调换。
+ * 这里保留类形态而不是改成 namespace，因为它是个有生命周期的对象：
+ *   - 析构要收 GDI+（gdiplusToken）；
+ *   - WebView2 的环境创建回调以它为宿主（Callback<>(this, &Env::onEnvReady)），必须有 this。
+ */
 class Env
 {
 public:
-	Env();
 	~Env();
 	static void init();
 	static std::filesystem::path getDataPath();
 	static ICoreWebView2Environment* getWebViewEnv();
-	static winrt::Windows::System::DispatcherQueue& getDispatcherQueue();
-public:
 private:
 	void checkRuntimeVersion();
 	bool checkRegKey(const HKEY& key, const std::wstring& subKey);
@@ -35,8 +38,6 @@ private:
 private:
 	std::filesystem::path dataPath; 
 	ComPtr<ICoreWebView2Environment> webViewEnv;
-	std::unique_ptr<Window> mainWindow;
-	winrt::Windows::System::DispatcherQueue dq;
 	ULONG_PTR gdiplusToken{};
 };
 

@@ -132,6 +132,21 @@ bool Article::updateArticle(sqlite3_int64 id, const std::wstring& title, const s
     return sqlite3_changes(conn) > 0;
 }
 
+bool Article::removeArticle(sqlite3_int64 id)
+{
+    sqlite3* conn = Db::get();
+    if (!conn) return false;
+
+    static const char* sql = "DELETE FROM article WHERE id = ?1;";
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(conn, sql, -1, &stmt, nullptr) != SQLITE_OK) return false;
+    sqlite3_bind_int64(stmt, 1, id);
+    // sqlite3_changes 用来区分"删到了"和"本来就没有这篇"
+    bool ok = (sqlite3_step(stmt) == SQLITE_DONE) && (sqlite3_changes(conn) > 0);
+    sqlite3_finalize(stmt);
+    return ok;
+}
+
 void Article::seed()
 {
     sqlite3* conn = Db::get();

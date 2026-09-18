@@ -36,10 +36,6 @@ Page::Page(Window* win, ComPtr<ICoreWebView2>& webview) :win{ win }, webview{ we
 	webview->Navigate(L"http://localhost:5173");
 }
 
-Page::~Page()
-{
-}
-
 void Page::emit(const JsonObject& eventData)
 {
     std::wstring eventDataStr{ eventData.Stringify() };
@@ -58,19 +54,20 @@ HRESULT Page::onMsgReceived(ICoreWebView2* webview, ICoreWebView2WebMessageRecei
     JsonObject result;
     result.SetNamedValue(L"id", JsonValue::CreateStringValue(param.GetNamedString(L"id")));
     if (method == L"showWindow") {
-        win->show(param, result);
+        win->show();
     }
     else if (method == L"hittest") {
-        win->hittest(param, result);
+        // args: { val }；val 是 HT_* 命中值，由前端 WindowBorder 给
+        win->hittest(static_cast<int>(param.GetNamedObject(L"args").GetNamedNumber(L"val")));
     }
     else if (method == L"minimize") {
-        win->minimize(param, result);
+        win->minimize();
     }
     else if (method == L"maximize") {
-        win->maximize(param, result);
+        win->maximize();
     }
     else if (method == L"restore") {
-        win->restore(param, result);
+        win->restore();
     }
     else if (method == L"selectImage") {
         handleSelectImage(args, result);
@@ -85,7 +82,7 @@ HRESULT Page::onMsgReceived(ICoreWebView2* webview, ICoreWebView2WebMessageRecei
         // 同上：只给标题，不带正文，也不分页。
         // args.categoryId 可选：不传（或不是数字）表示没有选中分类，加载全部
         JsonObject args = Util::msgArgs(param);
-        sqlite3_int64 categoryId = Util::argNumber(args, L"categoryId", -1);
+        sqlite3_int64 categoryId = Util::argNumber(args, L"categoryId");
         JsonObject payload;
         payload.SetNamedValue(L"articles", Article::loadTitles(categoryId));
         result.SetNamedValue(L"result", payload);
@@ -95,7 +92,7 @@ HRESULT Page::onMsgReceived(ICoreWebView2* webview, ICoreWebView2WebMessageRecei
         // 返回 { article: {...} }：id 不存在时 article 是空对象（前端按有没有 id 处理）
         JsonObject args = Util::msgArgs(param);
         JsonObject payload;
-        payload.SetNamedValue(L"article", Article::loadArticle(Util::argNumber(args, L"id", -1)));
+        payload.SetNamedValue(L"article", Article::loadArticle(Util::argNumber(args, L"id")));
         result.SetNamedValue(L"result", payload);
     }
     else if (method == L"createArticle") {
@@ -106,7 +103,7 @@ HRESULT Page::onMsgReceived(ICoreWebView2* webview, ICoreWebView2WebMessageRecei
         sqlite3_int64 id = Article::addArticle(
             Util::argString(args, L"title"),
             Util::argString(args, L"content"),
-            Util::argNumber(args, L"categoryId", -1));
+            Util::argNumber(args, L"categoryId"));
         JsonObject payload;
         payload.SetNamedValue(L"article", Article::loadArticle(id));
         result.SetNamedValue(L"result", payload);
@@ -115,8 +112,9 @@ HRESULT Page::onMsgReceived(ICoreWebView2* webview, ICoreWebView2WebMessageRecei
         // args: { id, title, content }；改标题与正文，updated_at 顺带刷新。
         // 返回 { ok, updatedAt }：前端拿新的 updatedAt 去刷新列表行显示的时间
         JsonObject args = Util::msgArgs(param);
-        sqlite3_int64 id = Util::argNumber(args, L"id", -1);
+        sqlite3_int64 id = Util::argNumber(args, L"id");
         bool ok = Article::updateArticle(id, Util::argString(args, L"title"), Util::argString(args, L"content"));
+        // 顺手把新的 updated_at 读回来给前端刷新列表行的时间显示
         // 顺手把新的 updated_at 读回来给前端刷新列表行的时间显示
         JsonObject payload;
         payload.SetNamedValue(L"ok", JsonValue::CreateBooleanValue(ok));
@@ -130,7 +128,7 @@ HRESULT Page::onMsgReceived(ICoreWebView2* webview, ICoreWebView2WebMessageRecei
         JsonObject args = Util::msgArgs(param);
         JsonObject payload;
         payload.SetNamedValue(L"id", JsonValue::CreateNumberValue(
-            static_cast<double>(Category::add(Util::argString(args, L"name"), Util::argNumber(args, L"parentId", -1)))));
+            static_cast<double>(Category::add(Util::argString(args, L"name"), Util::argNumber(args, L"parentId")))));
         result.SetNamedValue(L"result", payload);
     }
     else if (method == L"renameCategory") {
@@ -138,7 +136,15 @@ HRESULT Page::onMsgReceived(ICoreWebView2* webview, ICoreWebView2WebMessageRecei
         JsonObject args = Util::msgArgs(param);
         JsonObject payload;
         payload.SetNamedValue(L"ok", JsonValue::CreateBooleanValue(
-            Category::rename(Util::argNumber(args, L"id", -1), Util::argString(args, L"name"))));
+            Category::rename(Util::argNumber(args, L"id"), Util::argString(args, L"name"))));
+        result.SetNamedValue(L"result", payload);
+    }
+    else if (method == L"removeArticle") {
+        // args: { id }；删掉一篇。返回 { ok }：前端只在真的删到了行时才把列表行摘掉
+        JsonObject args = Util::msgArgs(param);
+        JsonObject payload;
+        payload.SetNamedValue(L"ok", JsonValue::CreateBooleanValue(
+            Article::removeArticle(Util::argNumber(args, L"id"))));
         result.SetNamedValue(L"result", payload);
     }
     else if (method == L"removeCategory") {
@@ -146,7 +152,7 @@ HRESULT Page::onMsgReceived(ICoreWebView2* webview, ICoreWebView2WebMessageRecei
         JsonObject args = Util::msgArgs(param);
         JsonObject payload;
         payload.SetNamedValue(L"ok", JsonValue::CreateBooleanValue(
-            Category::remove(Util::argNumber(args, L"id", -1))));
+            Category::remove(Util::argNumber(args, L"id"))));
         result.SetNamedValue(L"result", payload);
     }
     else if (method == L"openSite") {

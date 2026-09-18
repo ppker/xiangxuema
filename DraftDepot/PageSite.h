@@ -8,16 +8,14 @@ class WindowSite;
  *   - 不劫持本地资源（不注册 WebResourceRequested filter），让 webview 走网络正常加载；
  *   - 注册 WebMessageReceived 处理 site 页面 JS 调 native（minimize / maximize / restore）；
  *   - 注册 WindowCloseRequested 转发 WM_CLOSE 关窗；
- *   - 注册 DocumentTitleChanged / FaviconChanged，把网页标题与 favicon 同步到窗口标题栏与图标；
- *   - 暴露 emit() 让 native 能 PostWebMessage 推事件给 site 页面 JS。
- * 不做主动脚本注入：将来如需自动填字段，由调用方 emit 事件给 site 页面 JS 自行处理。
+ *   - 注册 DocumentTitleChanged / FaviconChanged，把网页标题与 favicon 同步到窗口标题栏与图标。
+ * 不做主动脚本注入：站点脚本只填site 页面用到的那部分。
  */
 class PageSite
 {
 public:
 	PageSite(WindowSite* win, ComPtr<ICoreWebView2>& webview, const std::wstring& url);
 	~PageSite();
-	void emit(const JsonObject& eventData);
 private:
 	HRESULT onMsgReceived(ICoreWebView2* webview, ICoreWebView2WebMessageReceivedEventArgs* args);
 	HRESULT onCloseWindow(ICoreWebView2* sender, IUnknown* args);

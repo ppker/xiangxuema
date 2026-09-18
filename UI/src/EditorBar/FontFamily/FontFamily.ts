@@ -47,7 +47,7 @@ class FontFamily extends CtrlBase {
 
   /** 按触发按钮位置定位弹层；下方放不下则向上翻折 */
   private position(popup: HTMLElement): void {
-    const rect = this.dom!.getBoundingClientRect();
+    const rect = this.dom.getBoundingClientRect();
     const below = rect.bottom + 4;
     const popupHeight = popup.offsetHeight;
     popup.style.left = `${rect.left}px`;
@@ -66,7 +66,7 @@ class FontFamily extends CtrlBase {
   /** 仅在展开期间绑定，因此触发时弹层必然存在 */
   private onDocMouseDown = (e: MouseEvent): void => {
     const target = e.target as Node;
-    if (!this.dom!.contains(target) && !this.popup!.contains(target)) {
+    if (!this.dom.contains(target) && !this.popup!.contains(target)) {
       this.close();
     }
   };

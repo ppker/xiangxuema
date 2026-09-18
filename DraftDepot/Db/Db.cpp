@@ -5,6 +5,9 @@
 
 namespace
 {
+    /// 到 db.db 的持久连接：进程内只用这一个，Db::get() 直接把它交出去
+    sqlite3* conn = nullptr;
+
     /// 数据库开不起来/建不了表就没法往下走，弹提示后直接结束进程
     [[noreturn]] void fatal(const std::wstring& detail)
     {
@@ -12,128 +15,92 @@ namespace
         MessageBox(nullptr, msg.c_str(), L"系统提示", MB_OK | MB_ICONERROR);
         ExitProcess(-1);
     }
-}
 
-Db& Db::getInstance()
-{
-    static Db instance;
-    return instance;
+    void createSchema()
+    {
+        static const char* schemaSql[] = {
+            // ========== 文章分类（一对多的“一”端，支持多级树形） ==========
+            // parent_id 为 NULL 表示顶层分类；同层用 sort_order 排序
+            "CREATE TABLE IF NOT EXISTS category ("
+            "  id          INTEGER PRIMARY KEY AUTOINCREMENT,"
+            "  name        TEXT    NOT NULL,"
+            "  parent_id   INTEGER,"
+            "  sort_order  INTEGER NOT NULL DEFAULT 0,"
+            "  created_at  TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),"
+            "  FOREIGN KEY (parent_id) REFERENCES category(id) ON DELETE CASCADE"
+            ");",
+
+            // ========== 文章内容（一对多的“多”端） ==========
+            "CREATE TABLE IF NOT EXISTS article ("
+            "  id          INTEGER PRIMARY KEY AUTOINCREMENT,"
+            "  title       TEXT    NOT NULL,"
+            "  content     TEXT    NOT NULL DEFAULT '',"
+            "  category_id INTEGER,"
+            "  created_at  TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),"
+            "  updated_at  TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),"
+            "  FOREIGN KEY (category_id) REFERENCES category(id) ON DELETE SET NULL"
+            ");",
+
+            // ========== 站点配置（某个网站专用的参数，按"站点名 + 参数键"取值） ==========
+            // 例如微信后台的登录凭证：name = "WeiXin"，param_key = "token"，param_val = "996767730"
+            // (name, param_key) 唯一：同一个站点的同一个参数只留一条，配合 UPSERT 覆盖写
+            "CREATE TABLE IF NOT EXISTS site ("
+            "  id         INTEGER PRIMARY KEY AUTOINCREMENT,"
+            "  name       TEXT    NOT NULL,"
+            "  param_key  TEXT    NOT NULL,"
+            "  param_val  TEXT,"
+            "  UNIQUE (name, param_key)"
+            ");",
+
+            // ========== 索引 ==========
+            "CREATE INDEX IF NOT EXISTS idx_category_parent ON category(parent_id);",
+            "CREATE INDEX IF NOT EXISTS idx_article_category ON article(category_id);",
+            "CREATE INDEX IF NOT EXISTS idx_article_created ON article(created_at);",
+            "CREATE INDEX IF NOT EXISTS idx_site_name ON site(name);",
+        };
+
+        for (const char* sql : schemaSql)
+        {
+            char* errMsg = nullptr;
+            if (sqlite3_exec(conn, sql, nullptr, nullptr, &errMsg) != SQLITE_OK)
+            {
+                sqlite3_free(errMsg);
+                fatal(L"建表失败\n\n"
+                    + std::wstring{ static_cast<const wchar_t*>(sqlite3_errmsg16(conn)) });
+            }
+        }
+    }
+
+    void open()
+    {
+        // 数据目录由 Env::initDataPath 负责创建；db.db 不存在时 sqlite3 会自动创建文件
+        auto dbPath = Env::getDataPath() / L"db.db";
+        // sqlite3 按 UTF-8 解析路径，这里显式转 UTF-8：既避免 path::string() 的 ANSI 转换
+        // 在中文用户名下打不开库，也不用 sqlite3_open16 —— 后者会顺手执行
+        // PRAGMA encoding='UTF-16'，把新库的默认编码从 UTF-8 改成 UTF-16le
+        auto u8Path = dbPath.u8string();
+        auto rc = sqlite3_open(reinterpret_cast<const char*>(u8Path.c_str()), &conn);
+        if (rc != SQLITE_OK)
+        {
+            auto detail = L"无法打开数据库文件\n\n" + dbPath.wstring() + L"\n\n"
+                + (conn ? std::wstring{ static_cast<const wchar_t*>(sqlite3_errmsg16(conn)) }
+                        : std::wstring{ L"无法创建数据库连接" });
+            sqlite3_close(conn);
+            fatal(detail);
+        }
+
+        createSchema();
+    }
 }
 
 void Db::init()
 {
-    getInstance().open();
+    open();
     Category::seed();
     Article::seed();
 }
 
 sqlite3* Db::get()
 {
-    return getInstance().conn;
-}
-
-void Db::open()
-{
-    if (ready) return;
-
-    // 数据目录由 Env::initDataPath 负责创建；db.db 不存在时 sqlite3 会自动创建文件
-    auto dbPath = Env::getDataPath() / L"db.db";
-    // sqlite3 按 UTF-8 解析路径，这里显式转 UTF-8：既避免 path::string() 的 ANSI 转换
-    // 在中文用户名下打不开库，也不用 sqlite3_open16 —— 后者会顺手执行
-    // PRAGMA encoding='UTF-16'，把新库的默认编码从 UTF-8 改成 UTF-16le
-    auto u8Path = dbPath.u8string();
-    auto rc = sqlite3_open(reinterpret_cast<const char*>(u8Path.c_str()), &conn);
-    if (rc != SQLITE_OK)
-    {
-        auto detail = L"无法打开数据库文件\n\n" + dbPath.wstring() + L"\n\n"
-            + (conn ? std::wstring{ static_cast<const wchar_t*>(sqlite3_errmsg16(conn)) }
-                    : std::wstring{ L"无法创建数据库连接" });
-        sqlite3_close(conn);
-        fatal(detail);
-    }
-
-    createSchema();
-
-    ready = true;
-}
-
-void Db::createSchema()
-{
-    static const char* schemaSql[] = {
-        // ========== 文章分类（一对多的“一”端，支持多级树形） ==========
-        // parent_id 为 NULL 表示顶层分类；同层用 sort_order 排序；ANCESTORS 便于物化路径查询
-        "CREATE TABLE IF NOT EXISTS category ("
-        "  id          INTEGER PRIMARY KEY AUTOINCREMENT,"
-        "  name        TEXT    NOT NULL,"
-        "  parent_id   INTEGER,"
-        "  sort_order  INTEGER NOT NULL DEFAULT 0,"
-        "  created_at  TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),"
-        "  FOREIGN KEY (parent_id) REFERENCES category(id) ON DELETE CASCADE"
-        ");",
-
-        // ========== 文章内容（一对多的“多”端） ==========
-        "CREATE TABLE IF NOT EXISTS article ("
-        "  id          INTEGER PRIMARY KEY AUTOINCREMENT,"
-        "  title       TEXT    NOT NULL,"
-        "  content     TEXT    NOT NULL DEFAULT '',"
-        "  category_id INTEGER,"
-        "  status      INTEGER NOT NULL DEFAULT 0,"
-        "  created_at  TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),"
-        "  updated_at  TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),"
-        "  FOREIGN KEY (category_id) REFERENCES category(id) ON DELETE SET NULL"
-        ");",
-
-        // ========== 文章标签（多对多的一端） ==========
-        // name 唯一，避免重复标签
-        "CREATE TABLE IF NOT EXISTS tag ("
-        "  id   INTEGER PRIMARY KEY AUTOINCREMENT,"
-        "  name TEXT NOT NULL UNIQUE,"
-        "  color TEXT"
-        ");",
-
-        // ========== 标签↔文章 多对多关联表 ==========
-        "CREATE TABLE IF NOT EXISTS article_tag ("
-        "  article_id INTEGER NOT NULL,"
-        "  tag_id     INTEGER NOT NULL,"
-        "  PRIMARY KEY (article_id, tag_id),"
-        "  FOREIGN KEY (article_id) REFERENCES article(id) ON DELETE CASCADE,"
-        "  FOREIGN KEY (tag_id)     REFERENCES tag(id) ON DELETE CASCADE"
-        ");",
-
-        // ========== 系统设置（键值对） ==========
-        "CREATE TABLE IF NOT EXISTS setting ("
-        "  key        TEXT PRIMARY KEY,"
-        "  value      TEXT,"
-        "  updated_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))"
-        ");",
-
-        // ========== 站点配置（某个网站专用的参数，按"站点名 + 参数键"取值） ==========
-        // 例如微信后台的登录凭证：name = "WeiXin"，param_key = "token"，param_val = "996767730"
-        // (name, param_key) 唯一：同一个站点的同一个参数只留一条，配合 UPSERT 覆盖写
-        "CREATE TABLE IF NOT EXISTS site ("
-        "  id         INTEGER PRIMARY KEY AUTOINCREMENT,"
-        "  name       TEXT    NOT NULL,"
-        "  param_key  TEXT    NOT NULL,"
-        "  param_val  TEXT,"
-        "  UNIQUE (name, param_key)"
-        ");",
-
-        // ========== 索引 ==========
-        "CREATE INDEX IF NOT EXISTS idx_category_parent ON category(parent_id);",
-        "CREATE INDEX IF NOT EXISTS idx_article_category ON article(category_id);",
-        "CREATE INDEX IF NOT EXISTS idx_article_created ON article(created_at);",
-        "CREATE INDEX IF NOT EXISTS idx_article_tag_tag ON article_tag(tag_id);",
-        "CREATE INDEX IF NOT EXISTS idx_site_name ON site(name);",
-    };
-
-    for (const char* sql : schemaSql)
-    {
-        char* errMsg = nullptr;
-        if (sqlite3_exec(conn, sql, nullptr, nullptr, &errMsg) != SQLITE_OK)
-        {
-            sqlite3_free(errMsg);
-            fatal(L"建表失败\n\n"
-                + std::wstring{ static_cast<const wchar_t*>(sqlite3_errmsg16(conn)) });
-        }
-    }
+    return conn;
 }

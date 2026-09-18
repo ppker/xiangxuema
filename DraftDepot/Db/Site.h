@@ -16,10 +16,6 @@ public:
 	/// 取某个站点的全部参数，组装成 { "<param_key>": "<param_val>" }；
 	/// site 窗口创建时按窗口 type 调它，一次把该站点的配置读进内存
 	static JsonObject load(const std::wstring& name);
-	/// 取某个站点的某个参数值；不存在（或 name / key 为空）时返回空串
-	static std::wstring get(const std::wstring& name, const std::wstring& key);
 	/// 设置参数值：已存在就覆盖（表上 (name, param_key) 唯一，走 UPSERT），不存在则插入
 	static bool set(const std::wstring& name, const std::wstring& key, const std::wstring& value);
-	/// 删除某个站点的某个参数；确实删到了行才返回 true
-	static bool remove(const std::wstring& name, const std::wstring& key);
 };

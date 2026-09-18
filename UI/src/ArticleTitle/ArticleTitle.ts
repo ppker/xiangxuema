@@ -3,6 +3,7 @@ import html from "./ArticleTitle.html?raw";
 import CtrlBase from "../CtrlBase";
 import Msg from "../Msg";
 import Header from "./Header/Header";
+import Menu from "./Menu/Menu";
 import EditorTitle from "../EditorTitle/EditorTitle";
 import EditorContent from "../EditorContent/EditorContent";
 
@@ -31,9 +32,11 @@ const UNTITLED = "【未命名】";
  *
  * 顺带管着"当前编辑的是哪一篇"，这里有两条不变量：
  * - 列表里永远至少有一篇文章：载入后发现一篇都没有（或读取失败），当场建一篇【未命名】；
+ *   删掉最后一篇后同样按这条补一篇；
  * - 永远有一行被选中：列表每次重画完就选中第一行，并把它的标题和正文载进编辑器。
  * 换句话说没有"新增态"：新建只有一条路，就是 Header 上的加号按钮广播的 addArticle
- * （清空标题输入框与正文 → 入库一篇【未命名】 → 补到列表末尾并选中它）。
+ * （清空标题输入框与正文 → 入库一篇【未命名】 → 插到列表最前面并选中它）。
+ * 删除只有一条路：右键列表行 → 菜单里的"删除此文章"（删掉的就是右键命中的那篇）。
  * 编辑过程中的改标题/改正文：立刻排队写回当前选中这篇（标题正文一起更新），排队期间最多 2 秒写一次。
  */
 class ArticleTitle extends CtrlBase {
@@ -84,6 +87,10 @@ class ArticleTitle extends CtrlBase {
     this.content = document.createElement("div");
     this.content.className = "articleListContent";
     this.dom.appendChild(this.content);
+    // 右键列表：整个内容区只挂一个监听，命中哪一行事后按 e.target 反查，不给每行单独绑
+    this.content.addEventListener("contextmenu", (e) => this.onContextMenu(e));
+    // 菜单里的"删除此文章"：删掉的就是被右键的那一行
+    Menu.onRemove = (item) => void this.removeArticle(item);
     void this.loadAndRender();
     // 标题/正文的改动统一在这里收口写回当前选中的这篇
     Msg.on("articleTitleEdited", this.onEdited);
@@ -235,6 +242,45 @@ class ArticleTitle extends CtrlBase {
   }
 
   /**
+   * 右键列表：命不到行（右键空白处）就不接管，留给默认菜单；
+   * 命到行就跟左键点这一行一样先选中它（这篇的标题正文载进编辑器），再在鼠标处弹出删除菜单
+   * ——菜单里的"删除此文章"删的正是刚被选中这篇。
+   */
+  private onContextMenu(e: MouseEvent): void {
+    const item = (e.target as HTMLElement).closest<HTMLElement>(".articleItem");
+    if (!item) return;
+    e.preventDefault();
+    void this.select(item);
+    Menu.open(e.clientX, e.clientY, item);
+  }
+
+  /**
+   * 删除一篇：从库里删掉后重新请求列表、整片重画，由 ensureSelection 选中重画后的第一行。
+   * 列表是按修改时间倒序取的，所以第一行就是剩下这些里最新改过的那篇；
+   * 删到最后一篇都没有了，ensureSelection 会当场建一篇【未命名】。
+   * 不问用户确认：删错的成本低于每次删都要点一下。
+   */
+  private async removeArticle(item: HTMLElement): Promise<void> {
+    const id = Number(item.dataset.id);
+    // 排着队的改动属于就要被删掉的那篇，没必要再写，直接丢掉
+    this.cancelSave();
+    try {
+      const data = (await Msg.invoke("removeArticle", { id })) as { ok: boolean };
+      if (!data.ok) return; // 库里已经没有这篇了：列表保持原样
+    } catch {
+      return; // 请求都走不通：列表保持原样，用户可以再试一次
+    }
+    await this.loadAndRender();
+  }
+
+  /** 有排着队的改动但不用写了（这篇就要被删掉）：停掉定时器，脏标记一并清掉 */
+  private cancelSave(): void {
+    clearTimeout(this.saveTimer);
+    this.saveTimer = 0;
+    this.dirty = false;
+  }
+
+  /**
    * 标题或正文有改动：排队入库。
    * 已经排着队的就不管了——定时器到点时连同这几秒的改动一起写掉
    */
@@ -264,13 +310,17 @@ class ArticleTitle extends CtrlBase {
     const id = this.selectedId;
     const title = ArticleTitle.storeTitle(EditorTitle.input.value);
     const content = EditorContent.content;
+    const item = this.selectedItem;
     try {
       const data = (await Msg.invoke("updateArticle", { id, title, content })) as { updatedAt: string };
+      // 写库的往返之间选中的可能已经不再是这一行（这篇被删了、或切了分类），
+      // 那时 this.selectedItem 已经是别人，不能拿这篇的数据去改别人的行
+      if (item !== this.selectedItem) return;
       // 列表行跟着更新：标题换成入库的值（空的会显示成【未命名】），时间换成库里新的 updated_at
-      const titleEl = this.selectedItem.querySelector<HTMLElement>(".articleItemTitle");
+      const titleEl = item.querySelector<HTMLElement>(".articleItemTitle");
       titleEl.textContent = title;
       titleEl.title = title;
-      const timeEl = this.selectedItem.querySelector<HTMLElement>(".articleItemTime");
+      const timeEl = item.querySelector<HTMLElement>(".articleItemTime");
       timeEl.textContent = ArticleTitle.formatUpdatedAt(data.updatedAt);
       timeEl.title = data.updatedAt;
     } finally {

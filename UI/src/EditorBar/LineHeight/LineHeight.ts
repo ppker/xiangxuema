@@ -4,6 +4,7 @@ import CtrlBase from "../../CtrlBase";
 import { getSelectedParagraphs } from "roosterjs-content-model-dom";
 import EditorContent from "../../EditorContent/EditorContent";
 import Msg from "../../Msg";
+import { cssLengthToPx } from "../cssLength";
 
 /** 可选的行高倍数（相对字号，CSS 无单位 line-height），展示顺序即列表顺序 */
 const LINE_HEIGHTS = ["1", "1.5", "2", "2.5", "3"];
@@ -53,7 +54,7 @@ class LineHeight extends CtrlBase {
 
   /** 按触发按钮位置定位弹层；下方放不下则向上翻折 */
   private position(popup: HTMLElement): void {
-    const rect = this.dom!.getBoundingClientRect();
+    const rect = this.dom.getBoundingClientRect();
     const below = rect.bottom + 4;
     const popupHeight = popup.offsetHeight;
     popup.style.left = `${rect.left}px`;
@@ -72,7 +73,7 @@ class LineHeight extends CtrlBase {
   /** 仅在展开期间绑定，因此触发时弹层必然存在 */
   private onDocMouseDown = (e: MouseEvent): void => {
     const target = e.target as Node;
-    if (!this.dom!.contains(target) && !this.popup!.contains(target)) {
+    if (!this.dom.contains(target) && !this.popup!.contains(target)) {
       this.close();
     }
   };
@@ -94,13 +95,13 @@ class LineHeight extends CtrlBase {
    * 若拿不到可解析的行高（空文档/未聚焦），按默认档位 1.5 回显。
    */
   private render(lineHeight?: string, fontSize?: string): void {
-    const linePx = this.toPx(lineHeight);
-    const fontPx = this.toPx(fontSize);
-    if (linePx <= 0) {
+    const linePx = cssLengthToPx(lineHeight);
+    const fontPx = cssLengthToPx(fontSize);
+    if (Number.isNaN(linePx)) {
       this.current = DEFAULT_LINE_HEIGHT;
       return;
     }
-    if (fontPx <= 0) {
+    if (Number.isNaN(fontPx)) {
       this.current = "";
       return;
     }
@@ -115,15 +116,6 @@ class LineHeight extends CtrlBase {
       }
     }
     this.current = closest && Math.abs(parseFloat(closest) - factor) < 0.1 ? closest : "";
-  }
-
-  /** 长度转 px：pt→px = ×4/3（与 FontSize.ts 一致）；非长度值返回 0 */
-  private toPx(length: string | undefined): number {
-    const m = /^(\d+(?:\.\d+)?)\s*(px|pt)$/i.exec((length ?? "").trim());
-    if (!m) {
-      return 0;
-    }
-    return m[2].toLowerCase() === "px" ? parseFloat(m[1]) : (parseFloat(m[1]) * 4) / 3;
   }
 
   private buildPopup(): HTMLDivElement {

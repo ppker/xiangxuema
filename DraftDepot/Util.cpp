@@ -9,15 +9,6 @@ std::wstring Util::convertToWStr(const char* str)
     MultiByteToWideChar(CP_UTF8, 0, str, -1, buffer.data(), count);
     return std::wstring(buffer.data(), buffer.size() - 1);
 }
-std::string Util::convertToStr(const std::wstring& wstr)
-{
-    if (wstr.empty()) return std::string();
-    auto count = WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), (int)wstr.length(), nullptr, 0, nullptr, nullptr);
-    if (count <= 0) return std::string();
-    std::string str(count, 0);
-    WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), (int)wstr.length(), str.data(), count, nullptr, nullptr);
-    return str;
-}
 std::tuple<void*, DWORD> Util::getRes(const std::wstring& name)
 {
     HRSRC hRes = FindResource(NULL, name.data(), RT_RCDATA);
@@ -44,11 +35,11 @@ std::wstring Util::argString(const JsonObject& args, const wchar_t* key)
     auto value = args.GetNamedValue(key);
     return value.ValueType() == JsonValueType::String ? std::wstring(value.GetString()) : std::wstring{};
 }
-sqlite3_int64 Util::argNumber(const JsonObject& args, const wchar_t* key, sqlite3_int64 fallback)
+sqlite3_int64 Util::argNumber(const JsonObject& args, const wchar_t* key)
 {
-    if (!args.HasKey(key)) return fallback;
+    if (!args.HasKey(key)) return Util::NO_NUMBER;
     auto value = args.GetNamedValue(key);
     return value.ValueType() == JsonValueType::Number
         ? static_cast<sqlite3_int64>(value.GetNumber())
-        : fallback;
+        : Util::NO_NUMBER;
 }

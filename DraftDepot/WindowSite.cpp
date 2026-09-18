@@ -34,6 +34,7 @@ WindowSite::WindowSite(const std::wstring& type)
 	// 没配过任何参数的站点（或 type 为空）拿到的是空 JsonObject，按"没有配置"处理
 }
 
+// 见 WindowSite.h 的说明：unique_ptr<PageSite> 的析构要实例化在 PageSite 完整可见的本文件
 WindowSite::~WindowSite()
 {
 }
@@ -94,17 +95,17 @@ void WindowSite::createWin()
 	wvEnv->CreateCoreWebView2Controller(hwnd, ctrlReadyCB.Get());
 }
 
-void WindowSite::minimize(const JsonObject& params, JsonObject& result)
+void WindowSite::minimize()
 {
 	ShowWindow(hwnd, SW_MINIMIZE);
 }
 
-void WindowSite::maximize(const JsonObject& params, JsonObject& result)
+void WindowSite::maximize()
 {
 	ShowWindow(hwnd, SW_MAXIMIZE);
 }
 
-void WindowSite::restore(const JsonObject& params, JsonObject& result)
+void WindowSite::restore()
 {
 	ShowWindow(hwnd, SW_RESTORE);
 }

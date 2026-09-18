@@ -18,6 +18,9 @@ class Menu extends CtrlBase {
   onAction: ((action: string, target: HTMLElement | null, anchor: { rect: DOMRect; mayFlip: boolean }) => void) | null =
     null;
 
+  /** 窗口失焦时收起菜单。定义成类字段而不是行内箭头函数：后者每次都是新引用，想解绑也解不掉 */
+  private onWindowBlur = (): void => this.close();
+
   constructor() {
     super(html);
   }
@@ -43,14 +46,15 @@ class Menu extends CtrlBase {
 
     // 点空白、页面滚动、窗口失焦、Esc 都关闭
     document.addEventListener("mousedown", (e) => {
-      if (!this.dom || !this.dom.contains(e.target as Node)) this.close();
+      // 首次 open() 之前还没挂到文档上，那时也没有菜单可关，close() 自己是空操作
+      if (!this.dom?.contains(e.target as Node)) this.close();
     });
     // 用捕获：滚动可能发生在 #category 这个内层滚动容器上，scroll 不冒泡
     document.addEventListener("scroll", () => this.close(), true);
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape") this.close();
     });
-    window.addEventListener("blur", () => this.close());
+    window.addEventListener("blur", this.onWindowBlur);
   }
 
   /** 在视口坐标 (x, y) 弹出菜单，target 是被右键的分类节点 */

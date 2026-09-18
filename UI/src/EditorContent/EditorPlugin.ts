@@ -51,6 +51,15 @@ export default class EditorPlugin {
         Msg.emit("editorContentChanged");
         break;
 
+      // 普通打字要单独接：光标折叠时 rooster 让浏览器直接把字符写进 DOM，
+      // 只作废模型缓存、并不发 contentChanged（只有删除/回车/粘贴/格式 API 这类
+      // 走 formatContentModel 的操作才发）。不接这两个事件，打的字根本不会被保存。
+      // 输入法上屏发的是 compositionEnd，也要算。
+      case "input":
+      case "compositionEnd":
+        Msg.emit("editorContentChanged");
+        break;
+
       case "keyDown":
       case "mouseUp":
         this.delayUpdate();

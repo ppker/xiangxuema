@@ -6,7 +6,6 @@ class Page
 {
 public:
 	Page(Window* win, ComPtr<ICoreWebView2>& webview);
-	~Page();
 	void emit(const JsonObject& eventData);
 private:
 	HRESULT onRequest(ICoreWebView2* webview, ICoreWebView2WebResourceRequestedEventArgs* args);

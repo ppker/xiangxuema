@@ -35,12 +35,6 @@ PageSite::~PageSite()
 	if (curIcon) DestroyIcon(curIcon);
 }
 
-void PageSite::emit(const JsonObject& eventData)
-{
-	std::wstring eventDataStr{ eventData.Stringify() };
-	webview->PostWebMessageAsJson(eventDataStr.data());
-}
-
 HRESULT PageSite::onMsgReceived(ICoreWebView2* webview, ICoreWebView2WebMessageReceivedEventArgs* args)
 {
 	PWSTR jsonRaw;
@@ -55,13 +49,13 @@ HRESULT PageSite::onMsgReceived(ICoreWebView2* webview, ICoreWebView2WebMessageR
 		result.SetNamedValue(L"id", JsonValue::CreateStringValue(param.GetNamedString(L"id")));
 	}
 	if (method == L"minimize") {
-		win->minimize(param, result);
+		win->minimize();
 	}
 	else if (method == L"maximize") {
-		win->maximize(param, result);
+		win->maximize();
 	}
 	else if (method == L"restore") {
-		win->restore(param, result);
+		win->restore();
 	}
 	else if (method == L"setParam") {
 		// args: { key, value }；站点脚本回传站点参数（微信的 token），由 WindowSite 落库

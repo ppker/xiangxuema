@@ -44,10 +44,6 @@ class Category extends CtrlBase {
   /** 标题栏之下的内容区：分类树的滚动容器，高度 = 面板高度 - 标题栏 */
   private content: HTMLElement | null = null;
 
-  /** 编辑器这次是给谁加的、加在哪：提交时按它决定 parent_id（对外可读，方便后续接线） */
-  editorTarget: HTMLElement | null = null;
-  editorMode: EditorMode = "top";
-
   constructor() {
     super(html);
   }
@@ -118,8 +114,6 @@ class Category extends CtrlBase {
     mode: EditorMode,
     anchor: { rect: DOMRect; mayFlip: boolean },
   ): void {
-    this.editorTarget = target;
-    this.editorMode = mode;
     const placeholder =
       mode === "top" ? "新分类名称" :
       mode === "sibling" ? "同级分类名称" :

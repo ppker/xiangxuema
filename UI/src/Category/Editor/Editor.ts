@@ -62,7 +62,8 @@ class Editor extends CtrlBase {
 
     // 点别处等于取消（和右键菜单同一套行为）
     document.addEventListener("mousedown", (e) => {
-      if (!this.dom || !this.dom.contains(e.target as Node)) this.close();
+      // 首次 open() 之前还没挂到文档上，那时也无需取消，close() 自己是空操作
+      if (!this.dom?.contains(e.target as Node)) this.close();
     });
 
     // Esc 取消（只在打开时才响应，别影响别处的 Esc）

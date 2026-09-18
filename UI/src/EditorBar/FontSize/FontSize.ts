@@ -3,6 +3,7 @@ import CtrlBase from "../../CtrlBase";
 import { setFontSize } from "roosterjs-content-model-api";
 import EditorContent from "../../EditorContent/EditorContent";
 import Msg from "../../Msg";
+import { cssLengthToPx } from "../cssLength";
 
 /** 下拉可选的文字大小（像素 px，整数档位），展示顺序即列表顺序 */
 const FONT_SIZES = [10, 11, 12, 14, 15, 16, 18, 20, 24, 28, 36, 48, 72];
@@ -51,7 +52,7 @@ class FontSize extends CtrlBase {
 
   /** 按触发按钮位置定位弹层；下方放不下则向上翻折 */
   private position(popup: HTMLElement): void {
-    const rect = this.dom!.getBoundingClientRect();
+    const rect = this.dom.getBoundingClientRect();
     const below = rect.bottom + 4;
     const popupHeight = popup.offsetHeight;
     popup.style.left = `${rect.left}px`;
@@ -70,7 +71,7 @@ class FontSize extends CtrlBase {
   /** 仅在展开期间绑定，因此触发时弹层必然存在 */
   private onDocMouseDown = (e: MouseEvent): void => {
     const target = e.target as Node;
-    if (!this.dom!.contains(target) && !this.popup!.contains(target)) {
+    if (!this.dom.contains(target) && !this.popup!.contains(target)) {
       this.close();
     }
   };
@@ -86,23 +87,9 @@ class FontSize extends CtrlBase {
 
   /** 用当前字号渲染按钮标签与下拉选中态 */
   private render(fontSize: string): void {
-    this.current = this.stateToPxText(fontSize);
+    const px = cssLengthToPx(fontSize);
+    this.current = Number.isNaN(px) ? "" : `${Math.round(px)}px`;
     this.dom.querySelector<HTMLElement>(".fontName").textContent = this.current || "默认";
-  }
-
-  /**
-   * 状态字号转 px 展示文本。
-   * 状态值形如 "11.25pt"（px 折算而来，见 retrieveModelFormatState），pt→px = ×4/3 取整；
-   * 若已是 px 单位则原样取值。
-   */
-  private stateToPxText(fontSize: string): string {
-    const m = /^(\d+(?:\.\d+)?)\s*(px|pt)/i.exec(fontSize ?? "");
-    if (!m) {
-      return "";
-    }
-    const value = parseFloat(m[1]);
-    const px = m[2].toLowerCase() === "px" ? value : Math.round((value * 4) / 3);
-    return `${px}px`;
   }
 
   private buildPopup(): HTMLDivElement {

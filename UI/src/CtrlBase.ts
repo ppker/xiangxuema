@@ -1,6 +1,8 @@
 export default abstract class CtrlBase {
   protected readonly templateHtml: string;
-  dom: HTMLElement | null = null;
+  /** 模板插进文档后的根元素。appendTo() 之前没有值，之后必定非空，
+   *  所以按非空类型对外声明，用时直接 this.dom.xxx，不必到处补 ! */
+  dom!: HTMLElement;
   constructor(templateHtml: string) {
     this.templateHtml = templateHtml;
   }

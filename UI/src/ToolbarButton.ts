@@ -18,7 +18,7 @@ export interface ToolbarButton {
   icon: string;
   /** 悬停提示，惯例带上快捷键，如 "加粗 (Ctrl+B)" */
   title: string;
-  /** 点击执行的原生命令，如 toggleBold，或 (editor) => toggleBullet(editor, true) */
+  /** 点击执行的原生命令；onClick 只传 editor，需要额外参数时才包一层 lambda */
   onClick: (editor: IEditor) => void;
   /** 点亮条件，对应 RibbonButton.isChecked */
   isChecked?: (state: ContentModelFormatState) => boolean;

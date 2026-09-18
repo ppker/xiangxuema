@@ -118,7 +118,7 @@ class Link extends CtrlBase {
   }
 
   private placePopup(popup: HTMLDivElement): void {
-    const rect = this.dom!.getBoundingClientRect();
+    const rect = this.dom.getBoundingClientRect();
     const below = rect.bottom + 4;
     const popupHeight = popup.offsetHeight;
     popup.style.left = `${rect.left}px`;
@@ -151,7 +151,7 @@ class Link extends CtrlBase {
   /** 仅在展开期间绑定，因此触发时弹层必然存在 */
   private onDocMouseDown = (e: MouseEvent) => {
     const target = e.target as Node;
-    if (!this.dom!.contains(target) && !this.popup!.contains(target)) {
+    if (!this.dom.contains(target) && !this.popup!.contains(target)) {
       this.close();
     }
   };

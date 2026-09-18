@@ -5,14 +5,16 @@ class Page;
 class Window
 {
 public:
-	Window();
+	/// 析构必须在 cpp 里定义：成员 page 是 unique_ptr<Page>，而这里 Page 只有前置声明，
+	/// 析构得在 Page 完整可见的地方实例化
 	~Window();
 	static Window* create();
-	void show(const JsonObject& params, JsonObject& result);
-	void hittest(const JsonObject& params, JsonObject& result);
-	void minimize(const JsonObject& params, JsonObject& result);
-	void maximize(const JsonObject& params, JsonObject& result);
-	void restore(const JsonObject& params, JsonObject& result);
+	void show();
+	/// 自绘标题栏拖动：val 是 HT_* 命中值，直接落成 WM_NCLBUTTONDOWN
+	void hittest(int val);
+	void minimize();
+	void maximize();
+	void restore();
 public:
 	HWND hwnd;
 private:
@@ -31,6 +33,5 @@ private:
 	static constexpr int DEFAULT_HEIGHT = 1200;
 	std::unique_ptr<Page> page;
 	ComPtr<ICoreWebView2Controller> ctrl;
-	std::wstring url;
 };
 

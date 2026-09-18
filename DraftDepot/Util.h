@@ -13,12 +13,13 @@ class Util
 {
 public:
 	static std::wstring convertToWStr(const char* str);
-	static std::string convertToStr(const std::wstring& wstr);
 	static std::tuple<void*, DWORD> getRes(const std::wstring& name);
 	/// 取 IPC 消息里的 args 对象；没有 args、或它不是对象时返回空对象（后续 HasKey 一律 false）
 	static JsonObject msgArgs(const JsonObject& param);
 	/// 取 args 里的字符串参数；缺失或类型不对时返回空串
 	static std::wstring argString(const JsonObject& args, const wchar_t* key);
-	/// 取 args 里的数字参数；缺失或类型不对时用 fallback
-	static sqlite3_int64 argNumber(const JsonObject& args, const wchar_t* key, sqlite3_int64 fallback);
+	/// 取 args 里的数字参数；缺失或类型不对时返回 NO_NUMBER（调用方拿它当"这个参数没传"）
+	static sqlite3_int64 argNumber(const JsonObject& args, const wchar_t* key);
+	/// argNumber 的"没有这个参数"返回值。-1：所有 IPC 约定负数都不是合法 id
+	static constexpr sqlite3_int64 NO_NUMBER = -1;
 };

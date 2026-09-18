@@ -28,24 +28,6 @@ JsonObject Site::load(const std::wstring& name)
     return obj;
 }
 
-std::wstring Site::get(const std::wstring& name, const std::wstring& key)
-{
-    sqlite3* conn = Db::get();
-    if (!conn || name.empty() || key.empty()) return {};
-
-    static const char* sql = "SELECT param_val FROM site WHERE name = ?1 AND param_key = ?2 LIMIT 1;";
-    sqlite3_stmt* stmt = nullptr;
-    if (sqlite3_prepare_v2(conn, sql, -1, &stmt, nullptr) != SQLITE_OK) return {};
-    sqlite3_bind_text16(stmt, 1, name.c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_text16(stmt, 2, key.c_str(), -1, SQLITE_TRANSIENT);
-
-    std::wstring value;
-    if (sqlite3_step(stmt) == SQLITE_ROW && sqlite3_column_type(stmt, 0) != SQLITE_NULL)
-        value = static_cast<const wchar_t*>(sqlite3_column_text16(stmt, 0));
-    sqlite3_finalize(stmt);
-    return value;
-}
-
 bool Site::set(const std::wstring& name, const std::wstring& key, const std::wstring& value)
 {
     sqlite3* conn = Db::get();
@@ -63,18 +45,3 @@ bool Site::set(const std::wstring& name, const std::wstring& key, const std::wst
     return ok;
 }
 
-bool Site::remove(const std::wstring& name, const std::wstring& key)
-{
-    sqlite3* conn = Db::get();
-    if (!conn || name.empty() || key.empty()) return false;
-
-    static const char* sql = "DELETE FROM site WHERE name = ?1 AND param_key = ?2;";
-    sqlite3_stmt* stmt = nullptr;
-    if (sqlite3_prepare_v2(conn, sql, -1, &stmt, nullptr) != SQLITE_OK) return false;
-    sqlite3_bind_text16(stmt, 1, name.c_str(), -1, SQLITE_TRANSIENT);
-    sqlite3_bind_text16(stmt, 2, key.c_str(), -1, SQLITE_TRANSIENT);
-    // sqlite3_changes 用来区分"删到了"和"本来就没有这个参数"
-    bool ok = (sqlite3_step(stmt) == SQLITE_DONE) && (sqlite3_changes(conn) > 0);
-    sqlite3_finalize(stmt);
-    return ok;
-}

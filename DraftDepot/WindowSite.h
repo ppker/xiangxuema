@@ -19,13 +19,14 @@ class WindowSite
 {
 public:
 	WindowSite(const std::wstring& type);
+	/// 同 Window：成员 page 是 unique_ptr<PageSite>，析构要实例化在 WindowSite.cpp
 	~WindowSite();
 	static WindowSite* create(const std::wstring& type);
 
 	/** 给 PageSite::onMsgReceived 调用的窗口控制（site 页面 JS 可经 IPC 调用） */
-	void minimize(const JsonObject& params, JsonObject& result);
-	void maximize(const JsonObject& params, JsonObject& result);
-	void restore(const JsonObject& params, JsonObject& result);
+	void minimize();
+	void maximize();
+	void restore();
 	/// args: { key, value }；站点脚本（如 WeiXin.js 抓到 token）回传参数，
 	/// 与已加载的 config 比对，不同才写回 site 表并更新内存；返回 { ok, changed }
 	void setParam(const JsonObject& params, JsonObject& result);

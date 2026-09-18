@@ -4,13 +4,11 @@
 #include "Page.h"
 
 std::unordered_map<HWND, std::unique_ptr<Window>> windows;
-Window::Window()
-{
-}
-
+// 见 Window.h 的说明：unique_ptr<Page> 的析构要实例化在 Page 完整可见的本文件
 Window::~Window()
 {
 }
+
 Window* Window::create()
 {
     auto win = std::make_unique<Window>();
@@ -66,19 +64,18 @@ void Window::createWin()
     wvEnv->CreateCoreWebView2Controller(hwnd, ctrlReadyCB.Get());
 }
 
-void Window::show(const JsonObject& params, JsonObject& result)
+void Window::show()
 {
     ShowWindow(hwnd, SW_SHOWMAXIMIZED);
     ctrl->put_IsVisible(TRUE);
 }
 
-void Window::hittest(const JsonObject& params, JsonObject& result)
+void Window::hittest(int val)
 {
     ReleaseCapture();
-    auto val = (int)params.GetNamedObject(L"args").GetNamedNumber(L"val");
     PostMessage(hwnd, WM_NCLBUTTONDOWN, val, 0);
 }
-void Window::minimize(const JsonObject& params, JsonObject& result)
+void Window::minimize()
 {
     ctrl->NotifyParentWindowPositionChanged();
     HWND hwndWebView = FindWindowEx(hwnd, nullptr, L"Chrome_WidgetWin_0", nullptr);
@@ -87,11 +84,11 @@ void Window::minimize(const JsonObject& params, JsonObject& result)
     PostMessage(hwndInner, WM_MOUSELEAVE, 0, 0);
     ShowWindow(hwnd, SW_MINIMIZE);
 }
-void Window::maximize(const JsonObject& params, JsonObject& result)
+void Window::maximize()
 {
     ShowWindow(hwnd, SW_MAXIMIZE);
 }
-void Window::restore(const JsonObject& params, JsonObject& result)
+void Window::restore()
 {
     // 只在真正从最大化下来时复位尺寸：从最小化还原（任务栏点回来）应该保持原样
     const auto wasMaximized = IsZoomed(hwnd);

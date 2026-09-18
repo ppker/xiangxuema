@@ -17,7 +17,7 @@ public:
 	/// 新建一篇后不需要重新查就能知道它排第一（它的 updated_at 就是当时）
 	/// 每项：{ "id": <int>, "title": <string>, "categoryId": <int|null>, "updatedAt": "YYYY-MM-DD HH:MM:SS" }
 	/// categoryId < 0 表示不过滤；否则连子分类一起算（选中父分类也能看到其下文章）
-	static JsonArray loadTitles(sqlite3_int64 categoryId = -1);
+	static JsonArray loadTitles(sqlite3_int64 categoryId);
 	/// 读取单篇文章（含正文）；id 不存在时返回空 JsonObject（调用方按 HasKey(L"id") 判断）
 	/// 返回：{ "id": <int>, "title": <string>, "content": <string>, "categoryId": <int|null>, "updatedAt": <string> }
 	static JsonObject loadArticle(sqlite3_int64 id);
@@ -25,6 +25,8 @@ public:
 	static sqlite3_int64 addArticle(const std::wstring& title, const std::wstring& content, sqlite3_int64 categoryId);
 	/// 更新已有文章的标题与正文，同时把 updated_at 刷成当前时间；返回是否真的改到了一行
 	static bool updateArticle(sqlite3_int64 id, const std::wstring& title, const std::wstring& content);
+	/// 删除一篇文章；确实删到了一行才返回 true（id 不存在返回 false）
+	static bool removeArticle(sqlite3_int64 id);
 	/// 写入文章测试数据（仅当文章表为空时）；按分类名字关联，库里没有的分类直接跳过
 	static void seed();
 };

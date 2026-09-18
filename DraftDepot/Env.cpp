@@ -1,6 +1,4 @@
-﻿#include <WebView2EnvironmentOptions.h>
-
-#include <system_error>
+﻿#include <system_error>
 
 #include "Env.h"
 #include "Window.h"
@@ -10,8 +8,6 @@
 #include <gdiplus.h>
 
 std::unique_ptr<Env> env;
-Env::Env() :dq{ winrt::Windows::System::DispatcherQueue::GetForCurrentThread() }
-{}
 Env::~Env()
 {
     Gdiplus::GdiplusShutdown(gdiplusToken);
@@ -97,11 +93,6 @@ ICoreWebView2Environment* Env::getWebViewEnv()
     return env->webViewEnv.Get();
 }
 
-winrt::Windows::System::DispatcherQueue& Env::getDispatcherQueue()
-{
-    return env->dq;
-}
-
 void Env::initDataPath()
 {
     PWSTR pathTmp = nullptr;
@@ -134,9 +125,8 @@ void Env::initGdiplus()
 
 void Env::initWebViewEnv()
 {
-    auto options = Microsoft::WRL::Make<CoreWebView2EnvironmentOptions>();
     auto envReadyCB = Callback<ICoreWebView2CreateCoreWebView2EnvironmentCompletedHandler>(this, &Env::onEnvReady);
-    CreateCoreWebView2EnvironmentWithOptions(nullptr, dataPath.c_str(), options.Get(), envReadyCB.Get());
+    CreateCoreWebView2EnvironmentWithOptions(nullptr, dataPath.c_str(), nullptr, envReadyCB.Get());
 }
 
 HRESULT Env::onEnvReady(HRESULT result, ICoreWebView2Environment* env)

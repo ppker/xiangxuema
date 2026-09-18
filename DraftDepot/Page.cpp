@@ -145,12 +145,13 @@ HRESULT Page::onMsgReceived(ICoreWebView2* webview, ICoreWebView2WebMessageRecei
         result.SetNamedValue(L"result", payload);
     }
     else if (method == L"openSite") {
-        // args: { url }；前端点"发布到 xxx"按钮时触发，新开一个 site 窗口并 navigate 到 URL。
-        // URL 由前端传入，将来加平台（知乎/CSDN/...）只改前端，native 不用动。
+        // args: { url, type }；前端点"发布到 xxx"按钮时触发，新开一个 site 窗口并 navigate 到 URL。
+        // URL 与站点类型都由前端传入：type 标的是哪个平台（公众号 "WeiXin"、CSDN "CSDN" ...），
+        // 由 WindowSite 持有，将来加平台只改前端，native 不用动。
         JsonObject args = messageArgs(param);
         std::wstring url = argString(args, L"url");
         if (!url.empty()) {
-            WindowSite::create(url);
+            WindowSite::create(url, argString(args, L"type"));
         }
     }
     else {

@@ -156,6 +156,7 @@
     <ClCompile Include="Page.cpp" />
     <ClCompile Include="PageSite.cpp" />
     <ClCompile Include="SQLite\sqlite3.c" />
+    <ClCompile Include="Util.cpp" />
     <ClCompile Include="Window.cpp" />
     <ClCompile Include="WindowSite.cpp" />
   </ItemGroup>
@@ -172,6 +173,7 @@
     <ClInclude Include="Page.h" />
     <ClInclude Include="PageSite.h" />
     <ClInclude Include="SQLite\sqlite3.h" />
+    <ClInclude Include="Util.h" />
     <ClInclude Include="Window.h" />
     <ClInclude Include="WindowSite.h" />
   </ItemGroup>

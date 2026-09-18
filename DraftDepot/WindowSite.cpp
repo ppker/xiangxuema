@@ -1,11 +1,12 @@
 #include "Env.h"
 #include "WindowSite.h"
 #include "PageSite.h"
+#include "Util.h"
 
 /// site 窗口的全局注册表。关 site 窗口不影响主进程；主进程退出由主 Window::onDestroy 触发。
 std::unordered_map<HWND, std::unique_ptr<WindowSite>> windowsSite;
 
-WindowSite::WindowSite(const std::wstring& url) : url{ url }
+WindowSite::WindowSite(const std::wstring& url, const std::wstring& type) : url{ url }, type{ type }
 {
 }
 
@@ -13,9 +14,9 @@ WindowSite::~WindowSite()
 {
 }
 
-WindowSite* WindowSite::create(const std::wstring& url)
+WindowSite* WindowSite::create(const std::wstring& url, const std::wstring& type)
 {
-	auto win = std::make_unique<WindowSite>(url);
+	auto win = std::make_unique<WindowSite>(url, type);
 	win->createWin();
 	auto result = win.get();
 	windowsSite.insert({ win->hwnd, std::move(win) });
@@ -91,8 +92,22 @@ HRESULT WindowSite::onCtrlReady(HRESULT result, ICoreWebView2Controller* ctrl)
 	RECT bounds;
 	GetClientRect(hwnd, &bounds);
 	ctrl->put_Bounds(bounds);
+	// 赶在 PageSite 发起 Navigate 之前注册：脚本要在首屏文档创建时就跑起来
+	injectSiteScript(webview);
 	page = std::make_unique<PageSite>(this, webview, url);
 	return S_OK;
+}
+
+void WindowSite::injectSiteScript(ComPtr<ICoreWebView2>& webview)
+{
+	// 脚本按 type 同名取资源（Resource.rc 里以 RCDATA 挂进来）；
+	// 没有对应资源的平台（type 为空，或还没写脚本）就不注入，site 窗口当普通浏览器用
+	auto [data, size] = Util::getRes(type + L".js");
+	if (!data || size == 0) return;
+	// 脚本文档是 UTF-8，而 AddScriptToExecuteOnDocumentCreated 要 UTF-16
+	auto script = Util::convertToWStr(std::string(static_cast<const char*>(data), size).c_str());
+	// 注册后每次文档创建（含首屏、跳转、iframe）都会自动执行，无需关心返回值
+	webview->AddScriptToExecuteOnDocumentCreated(script.c_str(), nullptr);
 }
 
 void WindowSite::onDestroy()

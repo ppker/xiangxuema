@@ -18,3 +18,17 @@ std::string Util::convertToStr(const std::wstring& wstr)
     WideCharToMultiByte(CP_UTF8, 0, wstr.c_str(), (int)wstr.length(), str.data(), count, nullptr, nullptr);
     return str;
 }
+std::tuple<void*, DWORD> Util::getRes(const std::wstring& name)
+{
+    HRSRC hRes = FindResource(NULL, name.data(), RT_RCDATA);
+    if (!hRes) {
+        return std::make_tuple(nullptr, 0);
+    }
+    HGLOBAL hData = LoadResource(NULL, hRes);
+    if (!hData) {
+        return std::make_tuple(nullptr, 0);
+    }
+    void* pData = LockResource(hData);
+    DWORD size = SizeofResource(NULL, hRes);
+    return std::make_tuple(pData, size);
+}

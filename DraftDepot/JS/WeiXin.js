@@ -12,7 +12,7 @@ const EDIT_PAGE_MARK =
 // 登录失效兜底：页面上"请重新<a id="jumpUrl">登录</a>"本身就指向登录页，取不到就用首页
 const LOGIN_URL = "https://mp.weixin.qq.com/";
 
-const CHECK_INTERVAL = 800;
+const CHECK_INTERVAL = 600;
 
 let lastToken = ""; // 已回传过的 token，避免每 800ms 重复往 C++ 发
 

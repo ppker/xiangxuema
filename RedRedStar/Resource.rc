@@ -2,16 +2,14 @@
 #include "winres.h"
 #undef APSTUDIO_READONLY_SYMBOLS
 
-// Ƕ���ǰ����Դ�ļ�
+WeiXin.js RCDATA "RedRedStar/JS/WeiXin.js"
 // index.html RCDATA "UI/index.html"
 // index.js RCDATA "UI/index.js"
 // iconfont.css RCDATA "UI/iconfont.css"
 // iconfont.ttf RCDATA "UI/iconfont.ttf"
-// Ƕ���Ӧ�ó���ͼ��
 //100 ICON "logo.ico"
 
 VS_VERSION_INFO VERSIONINFO
-// ���ÿ�ִ���ļ��汾��
 FILEVERSION 0, 0, 1, 0
 PRODUCTVERSION 0, 0, 1, 0
 FILEFLAGSMASK 0x3fL
@@ -28,14 +26,13 @@ BEGIN
 	BEGIN
 		BLOCK "080404b0"
 		BEGIN
-			// ���ÿ�ִ���ļ���Ʒ��Ϣ
 			VALUE "CompanyName", "GitHub xland"
-			VALUE "FileDescription", "WebView2Demo"
+			VALUE "FileDescription", "RedRedStar"
 			VALUE "FileVersion", "0.0.1.0"
-			VALUE "InternalName", "WebView2Demo.exe"
+			VALUE "InternalName", "RedRedStar.exe"
 			VALUE "LegalCopyright", "Copyright (C) LiuXiaolun 2026"
-			VALUE "OriginalFilename", "WebView2Demo.exe"
-			VALUE "ProductName", "WebView2Demo"
+			VALUE "OriginalFilename", "RedRedStar.exe"
+			VALUE "ProductName", "RedRedStar"
 			VALUE "ProductVersion", "0.0.1.0"
 		END
 	END

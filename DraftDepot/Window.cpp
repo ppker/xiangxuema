@@ -49,7 +49,7 @@ void Window::createWin()
     wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
     wcex.hbrBackground = (HBRUSH)COLOR_WINDOW;
     wcex.lpszMenuName = nullptr;
-    wcex.lpszClassName = L"RedRedStar";
+    wcex.lpszClassName = L"DraftDepot";
     RegisterClassEx(&wcex);
     hwnd = CreateWindowEx(WS_EX_APPWINDOW, wcex.lpszClassName, wcex.lpszClassName, WS_MAXIMIZEBOX | WS_MINIMIZEBOX | WS_POPUP, 200, 300, 1000, 800, nullptr, nullptr, wcex.hInstance, nullptr);
     SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));

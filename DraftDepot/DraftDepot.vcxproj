@@ -22,7 +22,7 @@
     <VCProjectVersion>18.0</VCProjectVersion>
     <Keyword>Win32Proj</Keyword>
     <ProjectGuid>{50c6a95a-cb80-4d95-8f44-8994fbb63ce8}</ProjectGuid>
-    <RootNamespace>RedRedStar</RootNamespace>
+    <RootNamespace>DraftDepot</RootNamespace>
     <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
     <WebView2LoaderPreference>Static</WebView2LoaderPreference>
   </PropertyGroup>
@@ -160,6 +160,7 @@
     <ClCompile Include="WindowSite.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="JS\WeiXin.js" />
     <None Include="packages.config" />
     <None Include="UI\iconfont.css" />
     <None Include="UI\index.html" />
@@ -179,6 +180,9 @@
   </ItemGroup>
   <ItemGroup>
     <Font Include="UI\iconfont.ttf" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="logo.ico" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

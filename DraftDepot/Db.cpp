@@ -258,7 +258,7 @@ void Db::seedArticles()
     };
 
     // 按分类铺一批标题，覆盖多个层级（顶层分类下也直接挂几篇）
-    insertOne(L"RedRedStar 项目说明", L"项目文档", L"0 minutes");     // 今
+    insertOne(L"DraftDepot 项目说明", L"项目文档", L"0 minutes");     // 今
     insertOne(L"WebView2 与原生通信踩坑", L"项目文档", L"-2 hours");  // 今
     insertOne(L"2026-09 第 2 周例会", L"会议纪要", L"-1 day");        // 昨
     insertOne(L"本周进展与下周计划", L"周报", L"-1 day");              // 昨

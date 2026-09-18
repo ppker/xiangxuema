@@ -1,4 +1,4 @@
-# redredstar
+# DraftDepot
 
 An Electron application with Svelte and TypeScript
 

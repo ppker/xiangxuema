@@ -2,12 +2,8 @@
 #include "winres.h"
 #undef APSTUDIO_READONLY_SYMBOLS
 
-WeiXin.js RCDATA "RedRedStar/JS/WeiXin.js"
-// index.html RCDATA "UI/index.html"
-// index.js RCDATA "UI/index.js"
-// iconfont.css RCDATA "UI/iconfont.css"
-// iconfont.ttf RCDATA "UI/iconfont.ttf"
-//100 ICON "logo.ico"
+WeiXin.js RCDATA "JS/WeiXin.js"
+100 ICON "logo.ico"
 
 VS_VERSION_INFO VERSIONINFO
 FILEVERSION 0, 0, 1, 0
@@ -27,12 +23,12 @@ BEGIN
 		BLOCK "080404b0"
 		BEGIN
 			VALUE "CompanyName", "GitHub xland"
-			VALUE "FileDescription", "RedRedStar"
+			VALUE "FileDescription", "DraftDepot"
 			VALUE "FileVersion", "0.0.1.0"
-			VALUE "InternalName", "RedRedStar.exe"
+			VALUE "InternalName", "DraftDepot.exe"
 			VALUE "LegalCopyright", "Copyright (C) LiuXiaolun 2026"
-			VALUE "OriginalFilename", "RedRedStar.exe"
-			VALUE "ProductName", "RedRedStar"
+			VALUE "OriginalFilename", "DraftDepot.exe"
+			VALUE "ProductName", "DraftDepot"
 			VALUE "ProductVersion", "0.0.1.0"
 		END
 	END

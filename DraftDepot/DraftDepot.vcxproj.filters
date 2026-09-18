@@ -36,12 +36,16 @@
     <ClCompile Include="SQLite\sqlite3.c">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="Db.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
     <None Include="UI\index.js" />
     <None Include="UI\index.html" />
     <None Include="UI\iconfont.css" />
+    <None Include="JS\WeiXin.js" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Env.h">
@@ -62,6 +66,9 @@
     <ClInclude Include="SQLite\sqlite3.h">
       <Filter>头文件</Filter>
     </ClInclude>
+    <ClInclude Include="Db.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Resource.rc">
@@ -70,5 +77,10 @@
   </ItemGroup>
   <ItemGroup>
     <Font Include="UI\iconfont.ttf" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="logo.ico">
+      <Filter>资源文件</Filter>
+    </Image>
   </ItemGroup>
 </Project>

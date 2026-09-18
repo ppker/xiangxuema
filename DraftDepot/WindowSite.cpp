@@ -53,7 +53,7 @@ void WindowSite::createWin()
 	wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
 	wcex.hbrBackground = (HBRUSH)COLOR_WINDOW;
 	wcex.lpszMenuName = nullptr;
-	wcex.lpszClassName = L"RedRedStarSite";
+	wcex.lpszClassName = L"DraftDepotSite";
 	RegisterClassEx(&wcex);
 	// 位置 (350,350) 错开主窗口的 (200,300)；1200x800 与主窗口一致；WS_OVERLAPPEDWINDOW 自带
 	// 标准标题栏、最小化/最大化/关闭按钮、可拖动改大小，所以不再像主窗口那样自绘/扩展 DWM 边框。

@@ -116,7 +116,7 @@ void Env::initDataPath()
     }
     dataPath.assign(pathTmp);
     CoTaskMemFree(pathTmp);
-    dataPath /= L"RedRedStar";
+    dataPath /= L"DraftDepot";
 
     // 必须显式创建：sqlite3_open16 只会创建 db.db 文件，不会创建父目录；
     // WebView2 虽然也会建 userDataFolder，但它排在 Db::init 之后，指望不上。

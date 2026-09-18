@@ -47,7 +47,7 @@ export default class EditorPlugin {
 
       case "contentChanged":
         this.emitState();
-        // 正文有变化：由 ArticleTitle 防抖写回当前选中的那篇
+        // 正文有变化：由 ArticleTitle 排队写回当前选中的那篇（最多 2 秒一次）
         Msg.emit("editorContentChanged");
         break;
 

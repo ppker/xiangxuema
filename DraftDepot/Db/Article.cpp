@@ -7,8 +7,10 @@ JsonArray Article::loadTitles(sqlite3_int64 categoryId)
     if (!conn) return arr;
 
     // 只取标题（外加 id、分类 id 和更新时间），不查 content
+    // 按修改时间倒序：刚更新的排在列表最上面。同一秒里写过的多篇（updated_at 只到秒）
+    // 用 id 倒序兜住，保证后来的一定更靠前
     static const char* sqlAll =
-        "SELECT id, title, category_id, updated_at FROM article ORDER BY id;";
+        "SELECT id, title, category_id, updated_at FROM article ORDER BY updated_at DESC, id DESC;";
     // 按分类过滤时连子分类一起算：递归取出该分类及其所有后代，
     // 这样选中父分类（如“工作”）也能看到“项目文档”下的文章
     static const char* sqlByCategory =
@@ -19,7 +21,7 @@ JsonArray Article::loadTitles(sqlite3_int64 categoryId)
         ")"
         "SELECT id, title, category_id, updated_at FROM article"
         " WHERE category_id IN (SELECT id FROM sub)"
-        " ORDER BY id;";
+        " ORDER BY updated_at DESC, id DESC;";
 
     sqlite3_stmt* stmt = nullptr;
     if (categoryId < 0)

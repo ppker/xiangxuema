@@ -30,7 +30,7 @@ class EditorTitle extends CtrlBase {
   }
 
   override ready(): void {
-    // 标题一被改动就广播出去：由 ArticleTitle 防抖写回当前选中的那篇
+    // 标题一被改动就广播出去：由 ArticleTitle 写回当前选中的那篇（最多 2 秒一次）
     this.input.addEventListener("input", () => Msg.emit("articleTitleEdited"));
     // 用 title 属性精确锁定按钮，避免依赖 HTML 里 8 个 .publishBtn 的顺序
     for (const target of publishTargets) {

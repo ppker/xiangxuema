@@ -34,7 +34,7 @@ const UNTITLED = "【未命名】";
  * - 永远有一行被选中：列表每次重画完就选中第一行，并把它的标题和正文载进编辑器。
  * 换句话说没有"新增态"：新建只有一条路，就是 Header 上的加号按钮广播的 addArticle
  * （清空标题输入框与正文 → 入库一篇【未命名】 → 补到列表末尾并选中它）。
- * 编辑过程中的改标题/改正文：防抖 800ms 写回当前选中这篇（标题正文一起更新）。
+ * 编辑过程中的改标题/改正文：立刻排队写回当前选中这篇（标题正文一起更新），排队期间最多 2 秒写一次。
  */
 class ArticleTitle extends CtrlBase {
   /** 当前过滤的分类 id；null 表示没选中分类，加载全部 */
@@ -58,11 +58,21 @@ class ArticleTitle extends CtrlBase {
    */
   private suppress = false;
 
-  /** 防抖入库的定时器；0 = 没有待写的改动 */
+  /** 防抖入库的定时器；0 = 没排着队 */
   private saveTimer = 0;
 
-  /** 连续输入时合并成一次写库的时间间隔（毫秒） */
-  private static readonly SAVE_DELAY = 800;
+  /** 有待入库的改动（标题或正文改了还没写进去） */
+  private dirty = false;
+
+  /** updateArticle 正在往返的过程中：这期间的改动算下一轮 */
+  private saving = false;
+
+  /**
+   * 两次入库之间的最小间隔（毫秒）。
+   * 标题/正文一改就排队；连着打字也不会一个字一次 IO，而是每 2 秒写一次，
+   * 写的时候取的是当下的最新内容，所以任何改动的落库延迟最多就是这 2 秒
+   */
+  private static readonly SAVE_INTERVAL = 2000;
 
   constructor() {
     super(html);
@@ -198,7 +208,7 @@ class ArticleTitle extends CtrlBase {
     this.scheduleSave();
   };
 
-  /** 新建一篇【未命名】：清空输入框与正文，入库后补到列表末尾并选中它 */
+  /** 新建一篇【未命名】：标题真写进库，输入框与正文清空，插到列表最上面并选中它 */
   private async createArticle(): Promise<void> {
     // 当前这篇还有没写完的改动：先落到它自己身上，别被新增的这篇接走
     this.flushSave();
@@ -210,7 +220,8 @@ class ArticleTitle extends CtrlBase {
         categoryId: this.categoryId,
       })) as { article: ArticleRow };
       const item = this.buildRow(data.article);
-      this.list.appendChild(item);
+      // 列表按修改时间倒序，刚建的这篇 updated_at 就是现在，必须排在最前面
+      this.list.prepend(item);
       item.scrollIntoView({ block: "nearest" });
       this.applySelection(item);
       // 清空：这是新增动作本身，别当成用户在改这篇刚建好的文章
@@ -223,15 +234,22 @@ class ArticleTitle extends CtrlBase {
     }
   }
 
-  /** 编辑中的文章写库：防抖，连续输入最后算一次 */
+  /**
+   * 标题或正文有改动：排队入库。
+   * 已经排着队的就不管了——定时器到点时连同这几秒的改动一起写掉
+   */
   private scheduleSave(): void {
-    clearTimeout(this.saveTimer);
-    this.saveTimer = window.setTimeout(() => void this.saveNow(), ArticleTitle.SAVE_DELAY);
+    this.dirty = true;
+    if (this.saveTimer || this.saving) return;
+    this.saveTimer = window.setTimeout(() => {
+      this.saveTimer = 0;
+      void this.saveNow();
+    }, ArticleTitle.SAVE_INTERVAL);
   }
 
   /** 把还没落的改动立刻写掉（切换文章、新建前调用，避免串稿） */
   private flushSave(): void {
-    if (!this.saveTimer) return; // 没有待写的改动
+    if (!this.dirty) return; // 没有待写的改动
     clearTimeout(this.saveTimer);
     this.saveTimer = 0;
     void this.saveNow();
@@ -239,17 +257,27 @@ class ArticleTitle extends CtrlBase {
 
   private async saveNow(): Promise<void> {
     this.saveTimer = 0;
+    this.saving = true;
+    // 标题与正文一起写给当前选中的这篇：不管是哪个变了我们俩都存，省得判断来源。
+    // 这一轮要写的东西已经取出来，写的过程中新来的改动算下一轮
+    this.dirty = false;
     const id = this.selectedId;
     const title = ArticleTitle.storeTitle(EditorTitle.input.value);
     const content = EditorContent.content;
-    const data = (await Msg.invoke("updateArticle", { id, title, content })) as { updatedAt: string };
-    // 列表行跟着更新：标题换成入库的值（空的会显示成【未命名】），时间换成库里新的 updated_at
-    const titleEl = this.selectedItem.querySelector<HTMLElement>(".articleItemTitle");
-    titleEl.textContent = title;
-    titleEl.title = title;
-    const timeEl = this.selectedItem.querySelector<HTMLElement>(".articleItemTime");
-    timeEl.textContent = ArticleTitle.formatUpdatedAt(data.updatedAt);
-    timeEl.title = data.updatedAt;
+    try {
+      const data = (await Msg.invoke("updateArticle", { id, title, content })) as { updatedAt: string };
+      // 列表行跟着更新：标题换成入库的值（空的会显示成【未命名】），时间换成库里新的 updated_at
+      const titleEl = this.selectedItem.querySelector<HTMLElement>(".articleItemTitle");
+      titleEl.textContent = title;
+      titleEl.title = title;
+      const timeEl = this.selectedItem.querySelector<HTMLElement>(".articleItemTime");
+      timeEl.textContent = ArticleTitle.formatUpdatedAt(data.updatedAt);
+      timeEl.title = data.updatedAt;
+    } finally {
+      this.saving = false;
+      // 写库期间又改了：再排一轮，下一次同样等 2 秒
+      if (this.dirty) this.scheduleSave();
+    }
   }
 
   /** 入库用的标题：输入框为空时用占位标题（输入框本身仍然保持为空） */

@@ -28,7 +28,7 @@ type EditorMode = "top" | "sibling" | "child" | "rename";
 /**
  * 左侧分类目录面板（模块单例）。
  * 面板即 #category 自身，由 ContentBox 挂到分栏槽位。
- * 内部先挂 Header 标题栏，再在它下面挂分类树；
+ * 内部先挂 Header 标题栏，再挂内容区 #categoryContent（吃掉标题栏之外的高度并负责滚动），分类树挂进内容区；
  * 启动时通过 Msg 请求原生侧从数据库读取分类，以原生 DOM 递归渲染 ul/li 树形分类。
  * 点击分工：点名称（含它的整片背景）选中/取消选中；点名称左侧的 +/− 图标展开/折叠；
  * 右键弹出 Menu 并顺手选中该分类；Menu 里的新增/改名走 Editor，提交后写库并重画分类树；
@@ -41,6 +41,9 @@ class Category extends CtrlBase {
   /** 当前选中的分类 id：重画分类树后靠它把选中还原回来 */
   private selectedId: number | null = null;
 
+  /** 标题栏之下的内容区：分类树的滚动容器，高度 = 面板高度 - 标题栏 */
+  private content: HTMLElement | null = null;
+
   /** 编辑器这次是给谁加的、加在哪：提交时按它决定 parent_id（对外可读，方便后续接线） */
   editorTarget: HTMLElement | null = null;
   editorMode: EditorMode = "top";
@@ -51,6 +54,10 @@ class Category extends CtrlBase {
 
   override ready(): void {
     Header.appendTo(this.dom);
+    // 标题栏之后再补一层内容区：滚动条只落在它身上，标题栏永远在最上面不动
+    this.content = document.createElement("div");
+    this.content.className = "categoryContent";
+    this.dom.appendChild(this.content);
 
     // 点击用事件委托：分类树是异步渲染出来的，绑在树节点上会漏掉后渲染的那些
     this.dom.addEventListener("click", (e) => {
@@ -263,7 +270,9 @@ class Category extends CtrlBase {
   /** 递归构建分类树 DOM，挂到 #category；selectId 用于指定重画后选中哪个分类 */
   private renderTree(nodes: CategoryNode[], selectId: number | null = null): void {
     // 新增/改名后是整棵重建，先把旧树摘掉，避免叠上去
-    this.dom.querySelector(".categoryTree")?.remove();
+    const content = this.content;
+    if (!content) return;
+    content.querySelector(".categoryTree")?.remove();
     // 旧节点已经离开文档，之前记的选中引用随之失效
     this.selected = null;
 
@@ -272,7 +281,7 @@ class Category extends CtrlBase {
     for (const node of nodes) {
       root.appendChild(this.buildNode(node));
     }
-    this.dom.appendChild(root);
+    content.appendChild(root);
 
     // 选中还原：优先用调用方指定的 id（新建的分类），否则沿用原来的选中；
     // 分类已经不在了就取消选中

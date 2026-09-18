@@ -41,9 +41,14 @@ export default class EditorPlugin {
   onPluginEvent(event: PluginEvent): void {
     switch (event.eventType) {
       case "editorReady":
-      case "contentChanged":
       case "zoomChanged":
         this.emitState();
+        break;
+
+      case "contentChanged":
+        this.emitState();
+        // 正文有变化：由 ArticleTitle 防抖写回当前选中的那篇
+        Msg.emit("editorContentChanged");
         break;
 
       case "keyDown":

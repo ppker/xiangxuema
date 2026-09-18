@@ -4,8 +4,21 @@
   flex-shrink: 0;
   background: #f4f4f5;
   border-right: 1px solid #e5e6eb;
-  overflow-y: auto;
+  overflow: hidden; /* 面板本身不出滚动条，滚动条只出现在下面的内容区 */
   user-select: none;
+  /* 纵向两截：标题栏占固定高度，内容区吃掉标题栏之外的高度 */
+  display: flex;
+  flex-direction: column;
+}
+
+/* 分类树的内容区：整块的重活都在这——高度是标题栏之外的全部剩余空间，内容超出才在这里出滚动条。
+   flex: 1 1 auto 让它吃掉剩余高度；min-height: 0 是关键前提（没有它 flex 项会以内容高度为准、
+   把面板顶破，滚动条就跑到面板外去了）。横向也允许滚：树缩进深时不至于被裁掉。 */
+.categoryContent {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: auto;
 }
 
 /* 标题栏（#categoryHeader / #categoryTitle / #addCategoryBtn）的样式在 Header/Header.scss */

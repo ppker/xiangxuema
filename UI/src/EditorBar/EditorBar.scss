@@ -9,11 +9,16 @@
   border-top: 1px solid #e5e6eb;
   background: #fafafa;
   user-select: none;
+  /* 按钮都不可收缩，窗口窄到挤不下时整排从这里被裁掉（下拉/弹层都挂到 body 上，不受这条裁剪影响） */
+  overflow: hidden;
 
   .toolBtn {
     display: flex;
     align-items: center;
     justify-content: center;
+    /* 不参与收缩：默认 flex-shrink:1 会在窗口变窄、这一排挤不下时把 32px 按钮连同里面的图标压扁。
+       flex:none 让每个按钮都保住自己的声明宽度，挤不下的整体被容器的 overflow 裁掉 */
+    flex: none;
     width: 32px;
     height: 30px;
     padding: 0;
@@ -50,7 +55,10 @@
     }
 
     &.fontBtn {
-      /* 字体按钮：显示当前字体，可点开下拉 */
+      /* 字体按钮：显示当前字体，可点开下拉。
+         唯二放开收缩的文字按钮：宽度跟着字体名走，挤不下时先由 .fontName 截成省略号，
+         收到 min-width 为止。想让它也完全不收缩，删掉下面这行即可 */
+      flex: 0 1 auto;
       width: auto;
       min-width: 96px;
       gap: 4px;

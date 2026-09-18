@@ -18,3 +18,20 @@ body.splitter-dragging {
   cursor: ew-resize;
   user-select: none;
 }
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #eee;
+}
+::-webkit-scrollbar-thumb {
+  background: #ddd;
+  cursor: default;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #ccc;
+}
+::-webkit-scrollbar-corner {
+  background: #eee;
+}

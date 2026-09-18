@@ -51,7 +51,9 @@ void Window::createWin()
     wcex.lpszMenuName = nullptr;
     wcex.lpszClassName = L"DraftDepot";
     RegisterClassEx(&wcex);
-    hwnd = CreateWindowEx(WS_EX_APPWINDOW, wcex.lpszClassName, wcex.lpszClassName, WS_MAXIMIZEBOX | WS_MINIMIZEBOX | WS_POPUP, 200, 300, 1000, 800, nullptr, nullptr, wcex.hInstance, nullptr);
+    // 初始位置/大小统一由 defaultRect() 给（原来是写死的 200,300,1000,800）
+    auto rect = defaultRect();
+    hwnd = CreateWindowEx(WS_EX_APPWINDOW, wcex.lpszClassName, wcex.lpszClassName, WS_MAXIMIZEBOX | WS_MINIMIZEBOX | WS_POPUP, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, nullptr, nullptr, wcex.hInstance, nullptr);
     SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(this));
     MARGINS margins = { 1, 1, 1, 1 };
     DwmExtendFrameIntoClientArea(hwnd, &margins);
@@ -91,7 +93,28 @@ void Window::maximize(const JsonObject& params, JsonObject& result)
 }
 void Window::restore(const JsonObject& params, JsonObject& result)
 {
+    // 只在真正从最大化下来时复位尺寸：从最小化还原（任务栏点回来）应该保持原样
+    const auto wasMaximized = IsZoomed(hwnd);
     ShowWindow(hwnd, SW_RESTORE);
+    if (!wasMaximized) return;
+    // SW_RESTORE 回到的是"进最大化之前"那套坐标：那是用户拖边框拖出来的尺寸，不是默认大小。
+    // 所以还原之后再按默认矩形显式摆一次。
+    // NOZORDER | NOACTIVATE：只动位置和大小，不动 Z 序、不抢焦点；随后 WM_SIZE 会同步 webview 的 bounds
+    auto rect = defaultRect();
+    SetWindowPos(hwnd, nullptr, rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top, SWP_NOZORDER | SWP_NOACTIVATE);
+}
+RECT Window::defaultRect() const
+{
+    RECT workAreaRect;
+    SystemParametersInfo(SPI_GETWORKAREA, 0, &workAreaRect, 0);
+    const auto workWidth = workAreaRect.right - workAreaRect.left;
+    const auto workHeight = workAreaRect.bottom - workAreaRect.top;
+    // 夹在工作区内：小分辨率显示器上不会被裁成默认大小溢出屏幕
+    const auto width = DEFAULT_WIDTH < workWidth ? DEFAULT_WIDTH : workWidth;
+    const auto height = DEFAULT_HEIGHT < workHeight ? DEFAULT_HEIGHT : workHeight;
+    const auto left = workAreaRect.left + (workWidth - width) / 2;
+    const auto top = workAreaRect.top + (workHeight - height) / 2;
+    return { left, top, left + width, top + height };
 }
 
 HRESULT Window::onCtrlReady(HRESULT result, ICoreWebView2Controller* ctrl)

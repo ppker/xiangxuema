@@ -1,6 +1,6 @@
 /* 分类右键菜单。
-   挂到 document.body 上、不是 #category 的后代：那个容器 overflow-y:auto，
-   弹层放在里面会被滚动容器裁掉。尺寸、边框、阴影与工具栏下拉面板保持一致。 */
+   挂到 document.body 上、不是 #category 的后代：分类树所在的 .categoryContent 是 overflow-y:auto
+   的滚动容器，弹层放在里面会被它裁掉。尺寸、边框、阴影与工具栏下拉面板保持一致。 */
 #categoryMenu {
   position: fixed;
   z-index: 1000;

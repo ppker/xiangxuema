@@ -56,6 +56,80 @@ JsonArray Article::loadTitles(sqlite3_int64 categoryId)
     return arr;
 }
 
+JsonObject Article::loadArticle(sqlite3_int64 id)
+{
+    JsonObject obj;
+    sqlite3* conn = Db::get();
+    if (!conn) return obj;
+
+    static const char* sql =
+        "SELECT title, content, category_id, updated_at FROM article WHERE id = ?1;";
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(conn, sql, -1, &stmt, nullptr) != SQLITE_OK) return obj;
+    sqlite3_bind_int64(stmt, 1, id);
+
+    if (sqlite3_step(stmt) == SQLITE_ROW)
+    {
+        obj.SetNamedValue(L"id", JsonValue::CreateNumberValue(static_cast<double>(id)));
+        obj.SetNamedValue(L"title", JsonValue::CreateStringValue(
+            std::wstring(static_cast<const wchar_t*>(sqlite3_column_text16(stmt, 0)))));
+        obj.SetNamedValue(L"content", JsonValue::CreateStringValue(
+            std::wstring(static_cast<const wchar_t*>(sqlite3_column_text16(stmt, 1)))));
+
+        if (sqlite3_column_type(stmt, 2) == SQLITE_NULL)
+            obj.SetNamedValue(L"categoryId", JsonValue::CreateNullValue());
+        else
+            obj.SetNamedValue(L"categoryId", JsonValue::CreateNumberValue(static_cast<double>(sqlite3_column_int64(stmt, 2))));
+
+        obj.SetNamedValue(L"updatedAt", JsonValue::CreateStringValue(
+            std::wstring(static_cast<const wchar_t*>(sqlite3_column_text16(stmt, 3)))));
+    }
+    sqlite3_finalize(stmt);
+    return obj;
+}
+
+sqlite3_int64 Article::addArticle(const std::wstring& title, const std::wstring& content, sqlite3_int64 categoryId)
+{
+    sqlite3* conn = Db::get();
+    if (!conn) return -1;
+
+    static const char* sql =
+        "INSERT INTO article (title, content, category_id, updated_at)"
+        " VALUES (?1, ?2, ?3, datetime('now', 'localtime'));";
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(conn, sql, -1, &stmt, nullptr) != SQLITE_OK) return -1;
+
+    sqlite3_bind_text16(stmt, 1, title.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text16(stmt, 2, content.c_str(), -1, SQLITE_TRANSIENT);
+    // 未分类（categoryId < 0）写 NULL：article.category_id 允许为空，列表读到的是 null 而不是 0
+    if (categoryId < 0) sqlite3_bind_null(stmt, 3);
+    else sqlite3_bind_int64(stmt, 3, categoryId);
+
+    sqlite3_int64 id = -1;
+    if (sqlite3_step(stmt) == SQLITE_DONE) id = sqlite3_last_insert_rowid(conn);
+    sqlite3_finalize(stmt);
+    return id;
+}
+
+bool Article::updateArticle(sqlite3_int64 id, const std::wstring& title, const std::wstring& content)
+{
+    sqlite3* conn = Db::get();
+    if (!conn) return false;
+
+    static const char* sql =
+        "UPDATE article SET title = ?2, content = ?3,"
+        " updated_at = datetime('now', 'localtime') WHERE id = ?1;";
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(conn, sql, -1, &stmt, nullptr) != SQLITE_OK) return false;
+
+    sqlite3_bind_int64(stmt, 1, id);
+    sqlite3_bind_text16(stmt, 2, title.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_bind_text16(stmt, 3, content.c_str(), -1, SQLITE_TRANSIENT);
+    sqlite3_step(stmt);
+    sqlite3_finalize(stmt);
+    return sqlite3_changes(conn) > 0;
+}
+
 void Article::seed()
 {
     sqlite3* conn = Db::get();

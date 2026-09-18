@@ -1,9 +1,8 @@
 /* 分类面板标题栏：左侧“文章分类”，右侧加号按钮。
-   吸顶：滚动容器是外层的 #category，标题栏贴住它的顶部，分类树滚动时保持可见。 */
+   不用吸顶：它是 #category 这个纵向 flex 容器的第一截，滚动发生在它下面的内容区里，
+   标题栏压根不在滚动区内，天然就不会被滚走。 */
 #categoryHeader {
-  position: sticky;
-  top: 0;
-  z-index: 1;
+  flex: 0 0 auto; /* 固定高度那一截，不参与剩余高度的分配 */
   background: #f4f4f5;
   display: flex;
   align-items: center;

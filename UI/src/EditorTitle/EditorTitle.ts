@@ -24,7 +24,14 @@ class EditorTitle extends CtrlBase {
     super(html);
   }
 
+  /** 文章标题输入框：由 ArticleTitle 读写（载入文章时填标题，入库时取标题） */
+  get input(): HTMLInputElement {
+    return this.dom.querySelector<HTMLInputElement>("#articleTitleInput");
+  }
+
   override ready(): void {
+    // 标题一被改动就广播出去：由 ArticleTitle 防抖写回当前选中的那篇
+    this.input.addEventListener("input", () => Msg.emit("articleTitleEdited"));
     // 用 title 属性精确锁定按钮，避免依赖 HTML 里 8 个 .publishBtn 的顺序
     for (const target of publishTargets) {
       const btn = this.dom.querySelector<HTMLElement>(`.publishBtn[title="${target.title}"]`);

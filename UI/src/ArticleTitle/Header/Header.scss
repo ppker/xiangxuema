@@ -1,11 +1,9 @@
 /* 文章列表面板标题栏：左侧“文章列表”，右侧加号按钮。
    规格与分类面板的标题栏保持一致（30px 高、按钮 30×30、图标 13px）；
    底色跟随所在面板：#articleTitle 是 #fafafa，不是分类面板的 #f4f4f5。
-   吸顶：等这个面板里有了可滚动的列表，它就会像分类面板那样吸住顶部。 */
+   不用吸顶：它是 #articleTitle 这个纵向 flex 容器的第一截，列表在自己的内容区里滚，标题栏不会动。 */
 #articleListHeader {
-  position: sticky;
-  top: 0;
-  z-index: 1;
+  flex: 0 0 auto; /* 固定高度那一截，不参与剩余高度的分配 */
   background: #fafafa;
   display: flex;
   align-items: center;

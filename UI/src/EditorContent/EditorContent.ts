@@ -1,7 +1,7 @@
 import "./EditorContent.scss";
 import html from "./EditorContent.html?raw";
 import CtrlBase from "../CtrlBase";
-import { Editor } from "roosterjs-content-model-core";
+import { Editor, createModelFromHtml, exportContent } from "roosterjs-content-model-core";
 import {
   EditPlugin,
   HyperlinkPlugin,
@@ -41,6 +41,26 @@ class EditorContent extends CtrlBase {
         fontSize: "15px",
       },
     });
+  }
+
+  /** 当前正文的 HTML：入库就是取它 */
+  get content(): string {
+    return exportContent(this.editor);
+  }
+
+  /**
+   * 把 HTML 写进编辑器（打开某篇文章时回填正文）。
+   * roosterjs 没有 setContentModel，只能借 formatContentModel：在回调里把模型的内容块整体换掉，
+   * 返回 true 表示模型已改动、需要写回 DOM。skipDOMSelection 是不给它安插选区（没人在这时候打字）。
+   */
+  setContent(html: string): void {
+    this.editor.formatContentModel(
+      (model) => {
+        model.blocks = createModelFromHtml(html).blocks;
+        return true;
+      },
+      { apiName: "setContent", skipDOMSelection: true },
+    );
   }
 }
 

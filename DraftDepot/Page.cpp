@@ -90,6 +90,40 @@ HRESULT Page::onMsgReceived(ICoreWebView2* webview, ICoreWebView2WebMessageRecei
         payload.SetNamedValue(L"articles", Article::loadTitles(categoryId));
         result.SetNamedValue(L"result", payload);
     }
+    else if (method == L"getArticle") {
+        // args: { id }；按 id 读单篇文章（含正文），给编辑器回填用。
+        // 返回 { article: {...} }：id 不存在时 article 是空对象（前端按有没有 id 处理）
+        JsonObject args = Util::msgArgs(param);
+        JsonObject payload;
+        payload.SetNamedValue(L"article", Article::loadArticle(Util::argNumber(args, L"id", -1)));
+        result.SetNamedValue(L"result", payload);
+    }
+    else if (method == L"createArticle") {
+        // args: { title, content, categoryId? }；categoryId 省略/null 表示未分类。
+        // 标题由前端保证不为空（空标题已替换成【未命名】）——title 列是 NOT NULL。
+        // 把整篇新文章回给前端：它拿其中的 id 与 updatedAt 插进列表并选中
+        JsonObject args = Util::msgArgs(param);
+        sqlite3_int64 id = Article::addArticle(
+            Util::argString(args, L"title"),
+            Util::argString(args, L"content"),
+            Util::argNumber(args, L"categoryId", -1));
+        JsonObject payload;
+        payload.SetNamedValue(L"article", Article::loadArticle(id));
+        result.SetNamedValue(L"result", payload);
+    }
+    else if (method == L"updateArticle") {
+        // args: { id, title, content }；改标题与正文，updated_at 顺带刷新。
+        // 返回 { ok, updatedAt }：前端拿新的 updatedAt 去刷新列表行显示的时间
+        JsonObject args = Util::msgArgs(param);
+        sqlite3_int64 id = Util::argNumber(args, L"id", -1);
+        bool ok = Article::updateArticle(id, Util::argString(args, L"title"), Util::argString(args, L"content"));
+        // 顺手把新的 updated_at 读回来给前端刷新列表行的时间显示
+        JsonObject payload;
+        payload.SetNamedValue(L"ok", JsonValue::CreateBooleanValue(ok));
+        auto fresh = Article::loadArticle(id);
+        if (fresh.HasKey(L"updatedAt")) payload.SetNamedValue(L"updatedAt", fresh.GetNamedValue(L"updatedAt"));
+        result.SetNamedValue(L"result", payload);
+    }
     else if (method == L"addCategory") {
         // args: { name, parentId? }；parentId 省略或 null 表示建顶层分类。
         // 返回 { id }：前端拿它选中刚建好的分类

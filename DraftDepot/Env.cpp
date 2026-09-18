@@ -22,11 +22,7 @@ void Env::init()
 	env = std::make_unique<Env>();
 	env->checkRuntimeVersion();
     env->initDataPath();
-    if (!Db::init()) {
-        auto msg = std::wstring{ L"数据库初始化失败\n\n" } + Db::lastError();
-        MessageBox(nullptr, msg.c_str(), L"系统提示", MB_OK);
-        ExitProcess(-1);
-    }
+    Db::init();
     // 必须在任何 GDI+ 操作之前：site 窗口拿到网页 favicon 后要用 GDI+ 把 PNG 流转成 HICON
     env->initGdiplus();
     env->initWebViewEnv();

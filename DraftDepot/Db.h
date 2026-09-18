@@ -17,7 +17,8 @@ class Db
 {
 public:
 	/// 打开数据目录下的 db.db；文件不存在则创建，并执行建表 SQL
-	static bool init();
+	/// 打开或建表失败时直接提示用户并退出进程，不会返回
+	static void init();
 	/// 取数据库连接
 	static sqlite3* get();
 	/// 写入文章分类测试数据（仅当分类表为空时）
@@ -42,15 +43,12 @@ public:
 	/// 每项：{ "id": <int>, "title": <string>, "categoryId": <int|null>, "updatedAt": "YYYY-MM-DD HH:MM:SS" }
 	/// categoryId < 0 表示不过滤；否则连子分类一起算（选中父分类也能看到其下文章）
 	static JsonArray loadArticleTitles(sqlite3_int64 categoryId = -1);
-	/// 最近一次失败的原因（sqlite 原文），供启动期提示使用；成功时为空
-	static const std::wstring& lastError();
 private:
 	Db() = default;
-	bool open();
-	bool createSchema();
+	void open();
+	void createSchema();
 	static Db& getInstance();
 private:
 	sqlite3* conn = nullptr;
 	bool ready = false;
-	std::wstring lastErrorText;
 };

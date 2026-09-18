@@ -1,20 +1,14 @@
 #include "Db.h"
 #include "Env.h"
 
-#include <cstring>
-
 namespace
 {
-    /// sqlite3 的文本错误信息是 UTF-8，转成宽字符便于直接塞进 MessageBox
-    std::wstring utf8ToWide(const char* text)
+    /// 数据库开不起来/建不了表就没法往下走，弹提示后直接结束进程
+    [[noreturn]] void fatal(const std::wstring& detail)
     {
-        if (!text || !*text) return {};
-        int len = MultiByteToWideChar(CP_UTF8, 0, text, -1, nullptr, 0);
-        if (len <= 0) return {};
-        std::wstring wide(static_cast<size_t>(len), L'\0');
-        MultiByteToWideChar(CP_UTF8, 0, text, -1, wide.data(), len);
-        wide.resize(static_cast<size_t>(len - 1)); // 去掉终止符
-        return wide;
+        auto msg = std::wstring{ L"数据库初始化失败\n\n" } + detail;
+        MessageBox(nullptr, msg.c_str(), L"系统提示", MB_OK | MB_ICONERROR);
+        ExitProcess(-1);
     }
 }
 
@@ -24,12 +18,11 @@ Db& Db::getInstance()
     return instance;
 }
 
-bool Db::init()
+void Db::init()
 {
-    if (!getInstance().open()) return false;
+    getInstance().open();
     Db::seedCategories();
     Db::seedArticles();
-    return true;
 }
 
 sqlite3* Db::get()
@@ -37,14 +30,9 @@ sqlite3* Db::get()
     return getInstance().conn;
 }
 
-const std::wstring& Db::lastError()
+void Db::open()
 {
-    return getInstance().lastErrorText;
-}
-
-bool Db::open()
-{
-    if (ready) return true;
+    if (ready) return;
 
     // 数据目录由 Env::initDataPath 负责创建；db.db 不存在时 sqlite3 会自动创建文件
     auto dbPath = Env::getDataPath() / L"db.db";
@@ -55,25 +43,19 @@ bool Db::open()
     auto rc = sqlite3_open(reinterpret_cast<const char*>(u8Path.c_str()), &conn);
     if (rc != SQLITE_OK)
     {
-        lastErrorText = conn ? static_cast<const wchar_t*>(sqlite3_errmsg16(conn))
-                             : L"无法打开数据库文件";
-        if (conn) sqlite3_close(conn);
-        conn = nullptr;
-        return false;
+        auto detail = L"无法打开数据库文件\n\n" + dbPath.wstring() + L"\n\n"
+            + (conn ? std::wstring{ static_cast<const wchar_t*>(sqlite3_errmsg16(conn)) }
+                    : std::wstring{ L"无法创建数据库连接" });
+        sqlite3_close(conn);
+        fatal(detail);
     }
 
-    if (!createSchema())
-    {
-        sqlite3_close(conn);
-        conn = nullptr;
-        return false;
-    }
+    createSchema();
 
     ready = true;
-    return true;
 }
 
-bool Db::createSchema()
+void Db::createSchema()
 {
     static const char* schemaSql[] = {
         // ========== 文章分类（一对多的“一”端，支持多级树形） ==========
@@ -135,13 +117,11 @@ bool Db::createSchema()
         char* errMsg = nullptr;
         if (sqlite3_exec(conn, sql, nullptr, nullptr, &errMsg) != SQLITE_OK)
         {
-            lastErrorText = utf8ToWide(errMsg);
-            if (lastErrorText.empty()) lastErrorText = L"建表失败";
             sqlite3_free(errMsg);
-            return false;
+            fatal(L"建表失败\n\n"
+                + std::wstring{ static_cast<const wchar_t*>(sqlite3_errmsg16(conn)) });
         }
     }
-    return true;
 }
 
 void Db::seedCategories()

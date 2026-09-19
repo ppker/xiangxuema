@@ -31,7 +31,7 @@
   sel.collapseToEnd();
   const dt = new DataTransfer();
   dt.setData('text/html',
-    '<p>test-<strong>加粗</strong>-第一段</p><h2>二级标题</h2><ul><li>列表项</li></ul><blockquote>引用</blockquote>');
+    `<p>test-<strong>加粗</strong>-第一段</p><h2>二级标题</h2><ul><li>列表项</li></ul><blockquote>引用</blockquote>`);
   const ev = new Event('paste', { bubbles: true, cancelable: true });
   Object.defineProperty(ev, 'clipboardData', { value: dt });
   ed.dispatchEvent(ev);

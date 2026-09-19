@@ -2,18 +2,13 @@ import "./EditorContent.scss";
 import html from "./EditorContent.html?raw";
 import CtrlBase from "../CtrlBase";
 import { Editor, createModelFromHtml, exportContent } from "roosterjs-content-model-core";
-import {
-  EditPlugin,
-  HyperlinkPlugin,
-  ImageEditPlugin,
-  PastePlugin,
-  ShortcutPlugin,
-  WatermarkPlugin,
-} from "roosterjs";
+import { EditPlugin, HyperlinkPlugin, ImageEditPlugin, PastePlugin, ShortcutPlugin, WatermarkPlugin } from "roosterjs";
 import EditorPlugin from "./EditorPlugin";
+import ImagePlugin from "./ImagePlugin";
 
 class EditorContent extends CtrlBase {
   editor: Editor | null = null;
+  private imagePlugin = new ImagePlugin();
 
   constructor() {
     super(html);
@@ -34,12 +29,13 @@ class EditorContent extends CtrlBase {
         new ImageEditPlugin({ disableRotate: true }),
         // 对标官方 demo：Ctrl+B/I/U、Ctrl+Z/Y、Ctrl+Shift+7/8 等快捷键
         new ShortcutPlugin(),
+        // 粘贴/拖放进来的内联图片（base64）落盘换持久 URL
+        this.imagePlugin,
         new EditorPlugin(),
       ],
-      defaultSegmentFormat: {
-        fontFamily: "微软雅黑",
-        fontSize: "15px",
-      },
+      // 不设 defaultSegmentFormat：默认字体/字号/颜色交给 #editorContent 的 CSS（见 EditorContent.scss）。
+      // 设了它反而有害——roosterjs 的 FormatPlugin 会在每次输入时把默认格式刷成段落上的内联 style，
+      // 于是每段都挂着同一串 style，还会盖掉 CSS 里的颜色；只有用户手动改过的样式才该写进 HTML
     });
   }
 

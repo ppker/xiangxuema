@@ -11,21 +11,34 @@ class Msg {
   private onMessage(event: any) {
     const msg = event.data;
     if (msg.id && this.cache.has(msg.id)) {
+      const pending = this.cache.get(msg.id);
       if (msg.error) {
-        this.cache.get(msg.id).reject(msg.error);
+        pending.reject(msg.error);
       } else {
-        this.cache.get(msg.id).resolve(msg.result);
+        // withObjects 的请求额外把原生随回包附带的附加对象交出去（没有时给空数组）
+        pending.resolve(pending.withObjects ? { result: msg.result, objects: event.additionalObjects ?? [] } : msg.result);
       }
       this.cache.delete(msg.id);
     } else if (msg.eventName) {
       this.emit(msg.eventName, msg);
     }
   }
-  invoke(method: String, args?: any) {
+  invoke(method: String, args?: any): Promise<unknown> {
+    return this.post(method, args, false);
+  }
+  /**
+   * 与 invoke 同构，但回包 resolve 的是 { result, objects }：
+   * objects 是原生用 PostWebMessageAsJsonWithAdditionalObjects 随回包附带的对象数组
+   * （如 File System Access 的目录句柄），原生没附带对象时是空数组。
+   */
+  invokeWithObjects(method: String, args?: any): Promise<{ result: any; objects: any[] }> {
+    return this.post(method, args, true) as Promise<{ result: any; objects: any[] }>;
+  }
+  private post(method: String, args: any, withObjects: boolean): Promise<unknown> {
     return new Promise((resolve, reject) => {
       const id = Math.random().toString(8).substring(2);
       const msg = { id, method, args };
-      this.cache.set(id, { resolve, reject });
+      this.cache.set(id, { resolve, reject, withObjects });
       /*@ts-ignore*/
       if (!window.chrome || !window.chrome.webview) {
         return;

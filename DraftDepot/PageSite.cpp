@@ -61,6 +61,10 @@ HRESULT PageSite::onMsgReceived(ICoreWebView2* webview, ICoreWebView2WebMessageR
 		// args: { key, value }；站点脚本回传站点参数（微信的 token），由 WindowSite 落库
 		win->setParam(param, result);
 	}
+	else if (method == L"getArticle") {
+		// args: 无；站点脚本进了对方编辑器后来取"待发布的文章"（openSite 时塞进来的），由 WindowSite 交出
+		win->takeArticle(result);
+	}
 	else {
 		// 未知方法回 error：与主 Page 行为对齐，避免前端 invoke 静默 resolve(undefined)
 		std::wstring message = L"unknown method: " + std::wstring(method.c_str());

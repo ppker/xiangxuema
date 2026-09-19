@@ -18,10 +18,16 @@ class PageSite;
 class WindowSite
 {
 public:
-	WindowSite(const std::wstring& type);
+	WindowSite(const std::wstring& type, const std::wstring& articleTitle, const std::wstring& articleHtml);
 	/// 同 Window：成员 page 是 unique_ptr<PageSite>，析构要实例化在 WindowSite.cpp
 	~WindowSite();
-	static WindowSite* create(const std::wstring& type);
+	/**
+	 * 建 site 窗口。
+	 * articleTitle / articleHtml：发布那一刻的文章标题与正文 HTML（点按钮时从主编辑器带过来），
+	 * 先存在窗口上，站点脚本进到对方编辑器后经 getArticle 取走；没做的平台传空串即可。
+	 */
+	static WindowSite* create(const std::wstring& type,
+		const std::wstring& articleTitle = {}, const std::wstring& articleHtml = {});
 
 	/** 给 PageSite::onMsgReceived 调用的窗口控制（site 页面 JS 可经 IPC 调用） */
 	void minimize();
@@ -30,6 +36,11 @@ public:
 	/// args: { key, value }；站点脚本（如 WeiXin.js 抓到 token）回传参数，
 	/// 与已加载的 config 比对，不同才写回 site 表并更新内存；返回 { ok, changed }
 	void setParam(const JsonObject& params, JsonObject& result);
+	/**
+	 * 站点脚本（WeiXin.js 进到编辑器后）来取"待发布的文章"，返回 { title, html }。
+	 * 取过一次就清空：脚本每个文档（含页面自身刷新、跳转）都跑一遍，留着会被反复灌进编辑器。
+	 */
+	void takeArticle(JsonObject& result);
 public:
 	HWND hwnd;
 	/// 站点类型，由前端 openSite 的 args.type 传入（如公众号 "WeiXin"、CSDN "CSDN"）
@@ -38,6 +49,9 @@ public:
 	/// 存成 { "<param_key>": "<param_val>" }，如 { "token": "996767730" }；
 	/// 窗口内要取配置直接读这个对象，不用再查库
 	JsonObject config;
+	/// 待灌进对方编辑器的文章，见 takeArticle。取走即清空，所以两者同时为空 = 已经发过了
+	std::wstring articleTitle;
+	std::wstring articleHtml;
 private:
 	static LRESULT CALLBACK winMsg(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 	void createWin();

@@ -23,7 +23,8 @@ public:
 	static JsonObject loadArticle(sqlite3_int64 id);
 	/// 新建文章：categoryId < 0 表示未分类；返回新文章的 id，写入失败返回 -1
 	static sqlite3_int64 addArticle(const std::wstring& title, const std::wstring& content, sqlite3_int64 categoryId);
-	/// 更新已有文章的标题与正文，同时把 updated_at 刷成当前时间；返回是否真的改到了一行
+	/// 更新已有文章的标题与正文，同时把 updated_at 刷成当前时间；返回是否真的改到了一行。
+	/// 正文写进去之后顺带按正文同步 image 表的记录（见 Image::syncFromContent）
 	static bool updateArticle(sqlite3_int64 id, const std::wstring& title, const std::wstring& content);
 	/// 删除一篇文章；确实删到了一行才返回 true（id 不存在返回 false）
 	static bool removeArticle(sqlite3_int64 id);

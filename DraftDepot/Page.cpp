@@ -7,9 +7,6 @@
 #include "Util.h"
 
 #include <fstream>
-#include <random>
-#include <ctime>
-#include <chrono>
 #include <filesystem>
 
 Page::Page(Window* win, ComPtr<ICoreWebView2>& webview) :win{ win }, webview{ webview }
@@ -69,8 +66,10 @@ HRESULT Page::onMsgReceived(ICoreWebView2* webview, ICoreWebView2WebMessageRecei
     else if (method == L"restore") {
         win->restore();
     }
-    else if (method == L"selectImage") {
-        handleSelectImage(args, result);
+    else if (method == L"getImageDir") {
+        // 把图片目录句柄随回包发给 JS（自带回包逻辑，不走下面的统一 PostWebMessageAsJson）
+        handleGetImageDir(result);
+        return S_OK;
     }
     else if (method == L"getCategories") {
         // 返回数据放进名为 result 的字段，前端 Msg.resolve(msg.result) 才能取到
@@ -156,13 +155,17 @@ HRESULT Page::onMsgReceived(ICoreWebView2* webview, ICoreWebView2WebMessageRecei
         result.SetNamedValue(L"result", payload);
     }
     else if (method == L"openSite") {
-        // args: { type }；前端点"发布到 xxx"按钮时触发，新开一个 site 窗口。
-        // 只传站点类型（公众号 "WeiXin"、CSDN "CSDN" ...）：打开哪个地址由 WindowSite 按 type 自己算
+        // args: { type, title, html }；前端点"发布到 xxx"按钮时触发，新开一个 site 窗口。
+        // type 决定开哪个站点（公众号 "WeiXin"、CSDN "CSDN" ...）：打开哪个地址由 WindowSite 按 type 自己算
         // ——微信会拿 site 表里存的 token 直接进编辑页，没 token 才落到登录首页，所以 URL 不再由前端给。
+        // title/html 是发布那一刻的文章标题与正文 HTML，暂存在 WindowSite 上，等站点脚本进到对方
+        // 编辑器后调 getArticle 取走（两个窗口各自是一个 WebView2，内容只能经这里中转）。
         JsonObject args = Util::msgArgs(param);
         std::wstring type = Util::argString(args, L"type");
         if (!type.empty()) {
-            WindowSite::create(type);
+            WindowSite::create(type,
+                Util::argString(args, L"title"),
+                Util::argString(args, L"html"));
         }
     }
     else {
@@ -257,31 +260,19 @@ std::wstring Page::getContentType(const std::wstring& fileName)
     return L"Content-Type: application/octet-stream";
 }
 
-HRESULT Page::saveImageToDataPath(const std::wstring& srcPath, std::wstring& outSavedPath)
-{
-    auto dir = Env::getDataPath();
-    std::error_code ec;
-    std::filesystem::create_directories(dir, ec);
-    if (ec) return E_FAIL;
-
-    // 唯一文件名：img_<秒时间戳>_<随机数>，保留源文件扩展名
-    auto ext = std::filesystem::path(srcPath).extension().wstring();
-    static std::mt19937 rng{ static_cast<unsigned>(std::time(nullptr)) };
-    unsigned long long ts = static_cast<unsigned long long>(std::chrono::system_clock::now().time_since_epoch().count());
-    auto name = L"img_" + std::to_wstring(ts) + L"_" + std::to_wstring(rng()) + ext;
-    auto dest = dir / name;
-
-    std::filesystem::copy_file(srcPath, dest, std::filesystem::copy_options::overwrite_existing, ec);
-    if (ec) return E_FAIL;
-
-    outSavedPath = dest.wstring();
-    return S_OK;
-}
-
 HRESULT Page::serveFileFromDataPath(ICoreWebView2WebResourceRequestedEventArgs* args, const std::wstring& resName)
 {
-    auto filePath = Env::getDataPath() / resName;
+    // resName 直接来自 URL（可含子目录，如 images/xxx.png）：规范化后必须仍在数据目录内，
+    // 挡掉 ../ 之类跳出目录的请求，同时保留了对 images 子目录的支持
+    if (resName.empty()) return S_FALSE;
+    auto base = Env::getDataPath().lexically_normal();
+    auto filePath = (base / resName).lexically_normal();
     std::error_code ec;
+    auto rel = std::filesystem::relative(filePath, base, ec).wstring();
+    if (ec || rel.empty() || rel == L".." || rel.rfind(L"..\\", 0) == 0 || rel.rfind(L"../", 0) == 0) {
+        return S_FALSE;
+    }
+
     auto sz = std::filesystem::file_size(filePath, ec);
     if (ec) return S_FALSE; // 文件不存在，交由调用方决定
     std::ifstream f(filePath, std::ios::binary);
@@ -295,32 +286,34 @@ HRESULT Page::serveFileFromDataPath(ICoreWebView2WebResourceRequestedEventArgs* 
     return S_OK;
 }
 
-HRESULT Page::handleSelectImage(ICoreWebView2WebMessageReceivedEventArgs* args, JsonObject& result)
+void Page::handleGetImageDir(JsonObject& result)
 {
-    ComPtr<ICoreWebView2WebMessageReceivedEventArgs2> args2;
-    if (FAILED(args->QueryInterface(IID_PPV_ARGS(&args2)))) return S_FALSE;
+    // 只把图片子目录交给 JS：数据目录里还放着 SQLite 库和 WebView2 的用户数据，
+    // 整个目录给 READ_WRITE 等于让前端能读写甚至删掉数据库
+    std::error_code ec;
+    auto dir = Env::getDataPath() / L"images";
+    std::filesystem::create_directories(dir, ec);
 
-    ComPtr<ICoreWebView2ObjectCollectionView> objs;
-    args2->get_AdditionalObjects(&objs);
-    UINT32 count = 0;
-    objs->get_Count(&count);
-    if (count == 0) return S_FALSE;
-
-    ComPtr<ICoreWebView2File> file;
-    objs->GetValueAtIndex(0, &file);
-    PWSTR rawPath = nullptr;
-    file->get_Path(&rawPath);
-    if (!rawPath) return S_FALSE;
-
-    std::wstring srcPath(rawPath);
-    CoTaskMemFree(rawPath);
-
-    std::wstring savedPath;
-    auto hr = saveImageToDataPath(srcPath, savedPath);
-    if (SUCCEEDED(hr)) {
-        result.SetNamedValue(L"result", JsonValue::CreateStringValue(L"https://app.localhost/" + std::filesystem::path(savedPath).filename().wstring()));
-        return S_OK;
+    ComPtr<ICoreWebView2Environment14> env14;
+    ComPtr<ICoreWebView2FileSystemHandle> dirHandle;
+    ComPtr<ICoreWebView2_23> webview23;
+    if (!ec
+        && SUCCEEDED(Env::getWebViewEnv()->QueryInterface(IID_PPV_ARGS(&env14)))
+        && SUCCEEDED(env14->CreateWebFileSystemDirectoryHandle(dir.c_str(),
+            COREWEBVIEW2_FILE_SYSTEM_HANDLE_PERMISSION_READ_WRITE, &dirHandle))
+        && SUCCEEDED(webview->QueryInterface(IID_PPV_ARGS(&webview23))))
+    {
+        IUnknown* items[] = { dirHandle.Get() };
+        ComPtr<ICoreWebView2ObjectCollection> collection;
+        if (SUCCEEDED(env14->CreateObjectCollection(1, items, &collection)))
+        {
+            // 自带回包：句柄只能随附加对象一起发，成功后直接返回
+            auto json = result.Stringify();
+            webview23->PostWebMessageAsJsonWithAdditionalObjects(json.c_str(), collection.Get());
+            return;
+        }
     }
-    result.SetNamedValue(L"error", JsonValue::CreateStringValue(L"保存图片失败"));
-    return S_FALSE;
+    result.SetNamedValue(L"error", JsonValue::CreateStringValue(L"获取图片目录失败"));
+    auto json = result.Stringify();
+    webview->PostWebMessageAsJson(json.c_str());
 }

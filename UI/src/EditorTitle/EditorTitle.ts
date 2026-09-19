@@ -2,6 +2,8 @@ import "./EditorTitle.scss";
 import html from "./EditorTitle.html?raw";
 import CtrlBase from "../CtrlBase";
 import Msg from "../Msg";
+import EditorContent from "../EditorContent/EditorContent";
+import forWeiXin from "../EditorContent/WeiXinHtml";
 
 /**
  * 发布目标：按钮 title → 站点类型（存进 WindowSite.type）。
@@ -17,7 +19,8 @@ const publishTargets = [
  * 编辑器顶部的文章标题栏（模块单例）。
  * 根元素 #editorTitle 由 ArticleEditor 挂到其顶部；
  * 左侧是标题输入框 #articleTitleInput，右侧是发布按钮 .publishBtn
- * （点击后把文章发布到外部平台：调 Msg.invoke("openSite", { type }) 让主 Page 派发到 WindowSite 新开一个浏览器窗口）。
+ * （点击后把文章发布到外部平台：调 Msg.invoke("openSite", { type, title, html })，
+ * type 决定开哪个 platform，title/html 是给对方编辑器用的当前文章内容）。
  */
 class EditorTitle extends CtrlBase {
   constructor() {
@@ -36,7 +39,14 @@ class EditorTitle extends CtrlBase {
     for (const target of publishTargets) {
       const btn = this.dom.querySelector<HTMLElement>(`.publishBtn[title="${target.title}"]`);
       btn.addEventListener("click", () => {
-        Msg.invoke("openSite", { type: target.type });
+        // 连同当前标题与正文一起交给 native：site 窗口里的脚本（如 WeiXin.js）进到对方编辑器后会来取。
+        // 两个窗口是各自独立的 WebView2，互相看不见，内容只能靠 native 中转
+        Msg.invoke("openSite", {
+          type: target.type,
+          title: this.input.value,
+          // 只有微信要这份收拾过的正文（行高偏小会被判成文字重叠），别家先原样给
+          html: target.type === "WeiXin" ? forWeiXin(EditorContent.content) : EditorContent.content,
+        });
       });
     }
   }

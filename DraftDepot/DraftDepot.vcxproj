@@ -152,6 +152,7 @@
   <ItemGroup>
     <ClCompile Include="Db\Article.cpp" />
     <ClCompile Include="Db\Category.cpp" />
+    <ClCompile Include="Db\Image.cpp" />
     <ClCompile Include="Db\Db.cpp" />
     <ClCompile Include="Db\Site.cpp" />
     <ClCompile Include="Env.cpp" />
@@ -172,6 +173,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Db\Article.h" />
+    <ClInclude Include="Db\Image.h" />
     <ClInclude Include="Db\Category.h" />
     <ClInclude Include="Db\Db.h" />
     <ClInclude Include="Db\Site.h" />

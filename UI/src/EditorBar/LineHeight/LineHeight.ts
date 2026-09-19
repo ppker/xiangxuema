@@ -58,8 +58,7 @@ class LineHeight extends CtrlBase {
     const below = rect.bottom + 4;
     const popupHeight = popup.offsetHeight;
     popup.style.left = `${rect.left}px`;
-    popup.style.top =
-      below + popupHeight > window.innerHeight ? `${rect.top - popupHeight - 4}px` : `${below}px`;
+    popup.style.top = below + popupHeight > window.innerHeight ? `${rect.top - popupHeight - 4}px` : `${below}px`;
   }
 
   /** 事件委托：点中带 data-value 的列表项交给 onPicked */

@@ -2,6 +2,7 @@
 #include "Category.h"
 #include "Article.h"
 #include "../Env.h"
+#include <cstring>
 
 namespace
 {
@@ -41,6 +42,19 @@ namespace
             "  FOREIGN KEY (category_id) REFERENCES category(id) ON DELETE SET NULL"
             ");",
 
+            // ========== 文章引用的图片（一对多的“多”端） ==========
+            // img_name 只存文件名（img_xxx.png）：图片都落在数据目录固定的 images 子目录下，
+            // 目录层不必重复写进表里，将来拼完整路径就是 数据目录/images/文件名。
+            // 图片从正文里删掉时不碰磁盘文件，只把 is_delete 置 1，将来要清理磁盘按这张表来
+            "CREATE TABLE IF NOT EXISTS image ("
+            "  id          INTEGER PRIMARY KEY AUTOINCREMENT,"
+            "  article_id  INTEGER NOT NULL,"
+            "  img_name    TEXT    NOT NULL,"
+            "  is_delete   INTEGER NOT NULL DEFAULT 0,"
+            "  UNIQUE (article_id, img_name),"
+            "  FOREIGN KEY (article_id) REFERENCES article(id) ON DELETE CASCADE"
+            ");",
+
             // ========== 站点配置（某个网站专用的参数，按"站点名 + 参数键"取值） ==========
             // 例如微信后台的登录凭证：name = "WeiXin"，param_key = "token"，param_val = "996767730"
             // (name, param_key) 唯一：同一个站点的同一个参数只留一条，配合 UPSERT 覆盖写
@@ -56,6 +70,7 @@ namespace
             "CREATE INDEX IF NOT EXISTS idx_category_parent ON category(parent_id);",
             "CREATE INDEX IF NOT EXISTS idx_article_category ON article(category_id);",
             "CREATE INDEX IF NOT EXISTS idx_article_created ON article(created_at);",
+            "CREATE INDEX IF NOT EXISTS idx_image_article ON image(article_id);",
             "CREATE INDEX IF NOT EXISTS idx_site_name ON site(name);",
         };
 
@@ -69,6 +84,30 @@ namespace
                     + std::wstring{ static_cast<const wchar_t*>(sqlite3_errmsg16(conn)) });
             }
         }
+    }
+
+    /// 旧库里的 image 表这一列还叫 img_path（存的还是 images/xxx.png 这种相对路径），
+    /// 这里把它改名并顺手去掉路径前缀，跟新表的 img_name 对齐；没建过这张表则什么都不做。
+    /// 等确认没人用旧库了，本函数和下面的调用点可以一起删掉
+    void migrateImageTable()
+    {
+        sqlite3_stmt* stmt = nullptr;
+        if (sqlite3_prepare_v2(conn, "PRAGMA table_info(image);", -1, &stmt, nullptr) != SQLITE_OK)
+            return;
+
+        bool hasOldColumn = false;
+        while (sqlite3_step(stmt) == SQLITE_ROW)
+        {
+            auto name = reinterpret_cast<const char*>(sqlite3_column_text(stmt, 1));
+            if (name && std::strcmp(name, "img_path") == 0) hasOldColumn = true;
+        }
+        sqlite3_finalize(stmt);
+        if (!hasOldColumn) return;
+
+        // sqlite 3.25 起支持 RENAME COLUMN，唯一约束与索引会自动跟着改到新列名上
+        sqlite3_exec(conn, "ALTER TABLE image RENAME COLUMN img_path TO img_name;", nullptr, nullptr, nullptr);
+        sqlite3_exec(conn, "UPDATE image SET img_name = REPLACE(img_name, 'images/', '')"
+            " WHERE img_name LIKE 'images/%';", nullptr, nullptr, nullptr);
     }
 
     void open()
@@ -90,6 +129,7 @@ namespace
         }
 
         createSchema();
+        migrateImageTable();
     }
 }
 

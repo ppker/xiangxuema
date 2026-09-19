@@ -27,8 +27,9 @@ namespace
 /// site 窗口的全局注册表。关 site 窗口不影响主进程；主进程退出由主 Window::onDestroy 触发。
 std::unordered_map<HWND, std::unique_ptr<WindowSite>> windowsSite;
 
-WindowSite::WindowSite(const std::wstring& type)
+WindowSite::WindowSite(const std::wstring& type, const std::wstring& articleTitle, const std::wstring& articleHtml)
 	: type{ type }, config{ Site::load(type) }
+	, articleTitle{ articleTitle }, articleHtml{ articleHtml }
 {
 	// 建窗即加载站点配置：Db 在 Env::init 阶段就已就绪，这里拿到的必然是可用连接。
 	// 没配过任何参数的站点（或 type 为空）拿到的是空 JsonObject，按"没有配置"处理
@@ -39,9 +40,10 @@ WindowSite::~WindowSite()
 {
 }
 
-WindowSite* WindowSite::create(const std::wstring& type)
+WindowSite* WindowSite::create(const std::wstring& type,
+	const std::wstring& articleTitle, const std::wstring& articleHtml)
 {
-	auto win = std::make_unique<WindowSite>(type);
+	auto win = std::make_unique<WindowSite>(type, articleTitle, articleHtml);
 	win->createWin();
 	auto result = win.get();
 	windowsSite.insert({ win->hwnd, std::move(win) });
@@ -131,6 +133,16 @@ void WindowSite::setParam(const JsonObject& params, JsonObject& result)
 	}
 	result.SetNamedValue(L"ok", JsonValue::CreateBooleanValue(ok));
 	result.SetNamedValue(L"changed", JsonValue::CreateBooleanValue(changed));
+}
+
+void WindowSite::takeArticle(JsonObject& result)
+{
+	JsonObject article;
+	article.SetNamedValue(L"title", JsonValue::CreateStringValue(articleTitle));
+	article.SetNamedValue(L"html", JsonValue::CreateStringValue(articleHtml));
+	articleTitle.clear();
+	articleHtml.clear();
+	result.SetNamedValue(L"result", article);
 }
 
 HRESULT WindowSite::onCtrlReady(HRESULT result, ICoreWebView2Controller* ctrl)

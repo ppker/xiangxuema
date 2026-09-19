@@ -1,4 +1,5 @@
 #include "Article.h"
+#include "Image.h"
 
 JsonArray Article::loadTitles(sqlite3_int64 categoryId)
 {
@@ -110,6 +111,8 @@ sqlite3_int64 Article::addArticle(const std::wstring& title, const std::wstring&
     sqlite3_int64 id = -1;
     if (sqlite3_step(stmt) == SQLITE_DONE) id = sqlite3_last_insert_rowid(conn);
     sqlite3_finalize(stmt);
+    // 正文里带的图片（比如从别处整段粘进来的）一并记进 image 表
+    if (id > 0) Image::syncFromContent(id, content);
     return id;
 }
 
@@ -129,7 +132,10 @@ bool Article::updateArticle(sqlite3_int64 id, const std::wstring& title, const s
     sqlite3_bind_text16(stmt, 3, content.c_str(), -1, SQLITE_TRANSIENT);
     sqlite3_step(stmt);
     sqlite3_finalize(stmt);
-    return sqlite3_changes(conn) > 0;
+    bool ok = sqlite3_changes(conn) > 0;
+    // 正文入库后再同步图片记录：正文里删掉的图标成 is_delete = 1，撤回来的复位成 0，磁盘文件不动
+    if (ok) Image::syncFromContent(id, content);
+    return ok;
 }
 
 bool Article::removeArticle(sqlite3_int64 id)

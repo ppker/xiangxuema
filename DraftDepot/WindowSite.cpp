@@ -11,10 +11,10 @@ namespace
 	/// 各平台的落地首页：没有可用 token（或该平台还没做"直奔编辑页"）时打开这里，让用户自己登录
 	const std::unordered_map<std::wstring, std::wstring> siteHome = {
 		{ L"WeiXin", L"https://mp.weixin.qq.com/" },
-		{ L"CSDN",   L"https://mp.csdn.net/" },
-		// 知乎：直接给写文章的页面。没登录会被它送到登录页，登录成功后又自动回到这个地址，
-		// 所以不需要像微信那样拿 token 拼编辑页
+		// 知乎 / CSDN：直接给写文章的页面。没登录会被它送到登录页，登录成功后又自动回到这个地址，
+		// 所以不需要像微信那样拿 token 拼编辑页（两个站点的注入脚本在编辑页里等文章灌入）
 		{ L"ZhiHu",  L"https://zhuanlan.zhihu.com/write" },
+		{ L"CSDN",   L"https://mp.csdn.net/mp_blog/creation/editor" },
 	};
 
 	/// 与 JS 的 Date.now() 同口径：Unix 纪元起的毫秒数，URL 里的 timestamp 要 13 位

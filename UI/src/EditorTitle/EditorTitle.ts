@@ -5,6 +5,7 @@ import Msg from "../Msg";
 import EditorContent from "../EditorContent/EditorContent";
 import forWeiXin from "../EditorContent/WeiXinHtml";
 import forZhiHu from "../EditorContent/ZhiHuHtml";
+import forCSDN from "../EditorContent/CSDNHtml";
 
 /**
  * 发布目标：按钮 title → 站点类型（存进 WindowSite.type）。
@@ -20,11 +21,13 @@ const publishTargets = [
 /**
  * 各平台要的正文形态：type → 转换函数（不登记的先原样给）。
  * 微信要整段摊平成它自己的段落结构、着色靠 shiki 内联色；知乎反过来——只标代码块语言，
- * 样式一概不塞（它只认自己的语义结构，见 ZhiHuHtml）。图片都由站点脚本在编辑页里传图床。
+ * 样式一概不塞（它只认自己的语义结构，见 ZhiHuHtml）；CSDN 与知乎同一套（见 CSDNHtml）。
+ * 图片都由站点脚本在对方编辑页里传图床（见 JS/ZhiHu.js、JS/CSDN.js）。
  */
 const forSite: Record<string, (html: string) => Promise<string>> = {
   WeiXin: forWeiXin,
   ZhiHu: forZhiHu,
+  CSDN: forCSDN,
 };
 
 /**

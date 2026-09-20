@@ -167,6 +167,7 @@
   <ItemGroup>
     <None Include="JS\WeiXin.js" />
     <None Include="JS\ZhiHu.js" />
+    <None Include="JS\CSDN.js" />
     <None Include="packages.config" />
     <None Include="UI\iconfont.css" />
     <None Include="UI\index.html" />

@@ -5,6 +5,7 @@
 Msg.js RCDATA "JS/Msg.js"
 WeiXin.js RCDATA "JS/WeiXin.js"
 ZhiHu.js RCDATA "JS/ZhiHu.js"
+CSDN.js RCDATA "JS/CSDN.js"
 100 ICON "logo.ico"
 
 VS_VERSION_INFO VERSIONINFO

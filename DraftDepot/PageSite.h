@@ -24,6 +24,11 @@ private:
 	/// 注入站点脚本：把 Msg.js（DDMsg 这个 IPC 客户端）与按窗口 type 取到的同名脚本
 	/// （type "WeiXin" → WeiXin.js）拼在一起注册；必须在 Navigate 之前调，否则首屏文档赶不上
 	void injectSiteScript(ComPtr<ICoreWebView2>& webview);
+	/// args: 无；站点脚本（如 ZhiHu.js）往对方图床传正文里的图之前，向 native 要图片目录的句柄，
+	/// 拿到目录后自己 getFileHandle 取文件，不用再为每张图往返一次。
+	/// 只能由 native 给：脚本跑在网页上下文里，碰不到本机文件系统，光有路径也造不出 File 对象。
+	/// 与主窗口的 Page::handleGetImageDir 是同一个目录，但只给 READ——站点只传图，不写图
+	void handleGetImageDir(JsonObject& result);
 private:
 	WindowSite* win;
 	ComPtr<ICoreWebView2> webview;

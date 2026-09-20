@@ -2,6 +2,8 @@ import "./EditorContent.scss";
 import html from "./EditorContent.html?raw";
 import CtrlBase from "../CtrlBase";
 import { Editor, createModelFromHtml, exportContent } from "roosterjs-content-model-core";
+import Msg from "../Msg";
+import { extractCodeBlocks, fillCodeBlocks, findCodeBlock, stripCodeBlocks } from "./CodeBlock";
 import { EditPlugin, HyperlinkPlugin, ImageEditPlugin, PastePlugin, ShortcutPlugin, WatermarkPlugin } from "roosterjs";
 import EditorPlugin from "./EditorPlugin";
 import ImagePlugin from "./ImagePlugin";
@@ -37,26 +39,34 @@ class EditorContent extends CtrlBase {
       // 设了它反而有害——roosterjs 的 FormatPlugin 会在每次输入时把默认格式刷成段落上的内联 style，
       // 于是每段都挂着同一串 style，还会盖掉 CSS 里的颜色；只有用户手动改过的样式才该写进 HTML
     });
+    // 双击代码块 → 交给工具栏的 Code 弹层编辑；代码块是只读 entity，双击不会进文本编辑态
+    this.dom.addEventListener("dblclick", (e) => {
+      const found = findCodeBlock(e.target as Node);
+      if (found) Msg.emit("editCodeBlock", found);
+    });
   }
 
-  /** 当前正文的 HTML：入库就是取它 */
+  /** 当前正文的 HTML：入库就是取它。代码块在这里剥掉着色，只留纯文本与语言 */
   get content(): string {
-    return exportContent(this.editor);
+    return stripCodeBlocks(exportContent(this.editor));
   }
 
   /**
    * 把 HTML 写进编辑器（打开某篇文章时回填正文）。
    * roosterjs 没有 setContentModel，只能借 formatContentModel：在回调里把模型的内容块整体换掉，
    * 返回 true 表示模型已改动、需要写回 DOM。skipDOMSelection 是不给它安插选区（没人在这时候打字）。
+   * 库里的代码块先抽成占位段落，正文进去之后再由 fillCodeBlocks 换成着色的 entity。
    */
   setContent(html: string): void {
+    const { html: plain, blocks } = extractCodeBlocks(html);
     this.editor.formatContentModel(
       (model) => {
-        model.blocks = createModelFromHtml(html).blocks;
+        model.blocks = createModelFromHtml(plain).blocks;
         return true;
       },
       { apiName: "setContent", skipDOMSelection: true },
     );
+    fillCodeBlocks(this.editor, blocks);
   }
 }
 

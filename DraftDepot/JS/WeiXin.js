@@ -15,8 +15,9 @@ const EDIT_PAGE_MARK =
 const LOGIN_URL = "https://mp.weixin.qq.com/";
 
 const CHECK_INTERVAL = 600;
-// 编辑页是 SPA：地址先落到，编辑器（ProseMirror）随后才渲染出来，所以要再盯着等一会儿。
-// 超时就放弃——宁可少灌一次，也别一直转着重复写别人的编辑器
+// 编辑页是 SPA：地址先落到，编辑器随后才初始化完，所以要再盯着等一会儿。
+// 就绪判据优先用微信自己的 mp_editor_get_isready，超时就放弃——宁可少灌一次，
+// 也别一直转着重复写别人的编辑器
 const EDITOR_WAIT_TIMEOUT = 30 * 1000;
 
 let lastToken = ""; // 已回传过的 token，避免每 600ms 重复往 C++ 发
@@ -53,8 +54,8 @@ function setTitle(editor, text) {
   }
 }
 
-/** 正文：整段 HTML 一把 paste 进去 */
-function setContent(editor, html) {
+/** 老编辑器的正文：整段 HTML 一把 paste 进去（新编辑器走下面的 JSAPI） */
+function setContentByPaste(editor, html) {
   editor.focus();
   const sel = window.getSelection();
   sel.selectAllChildren(editor); // 先把光标交给这块
@@ -62,33 +63,80 @@ function setContent(editor, html) {
   paste(editor, "text/html", html);
 }
 
-async function fillArticle(editors) {
+/** 微信挂在页面上的编辑器 JSAPI：新编辑器才有，而且要等它自己初始化完才出现 */
+function getJsApi() {
+  const api = window.__MP_Editor_JSAPI__;
+  return api && typeof api.invoke === "function" ? api : null;
+}
+
+/** 回调式的 JSAPI 包成 Promise，好跟 await 串起来；errCb 走 reject */
+function invokeJsApi(apiName, apiParam) {
+  return new Promise((resolve, reject) => {
+    // get_isready 没有参数，apiParam 传 undefined 它自己会忽略
+    getJsApi().invoke({ apiName: apiName, apiParam: apiParam, sucCb: resolve, errCb: reject });
+  });
+}
+
+/** 编辑器状态：{ isReady, isNew } */
+function getEditorState() {
+  return invokeJsApi("mp_editor_get_isready");
+}
+
+/** 正文（新编辑器）：整篇富文本交给微信自己处理，比模拟一次 paste 稳 */
+function setContentByApi(html) {
+  return invokeJsApi("mp_editor_set_content", { content: html });
+}
+
+async function fillArticle(useApi) {
+  if (filled) return;
+  filled = true;
   const article = await DDMsg.invoke("getArticle");
   // 两份都空 = 这一轮早给过了（页面刷新/跳转会让本脚本整个重跑），或这篇本来就没内容：都别动手
   if (!article || (!article.title && !article.html)) return;
-  if (article.title) setTitle(editors[0], article.title);
-  if (article.html) setContent(editors[1], article.html);
+
+  // 标题没有对应的 JSAPI（官方只给了正文相关的接口），还是往标题输入框里塞
+  const editors = getEditors();
+  if (article.title && editors[0]) setTitle(editors[0], article.title);
+  if (article.html) {
+    if (useApi) await setContentByApi(article.html);
+    else if (editors[1]) setContentByPaste(editors[1], article.html);
+  }
 }
 
-/** 到了编辑页：等标题 + 正文两个 ProseMirror 都渲染出来，再把文章灌进去 */
+/**
+ * 到了编辑页：等编辑器就绪再把文章灌进去。
+ * 就绪优先问微信自己（mp_editor_get_isready），不再靠数 ProseMirror 的个数。
+ * 只有 isNew=true 才走 set_content —— 官方说明写得很清楚：这类接口只对新编辑器开放，
+ * 老编辑器退回原来的 paste 路子。
+ */
 function waitEditorAndFill() {
   const startedAt = Date.now();
+  let pending = false; // 上一拍的 await 还没回来，别叠下一次
   const wait = setInterval(async () => {
-    const editors = getEditors();
-    if (editors.length < 2) {
-      if (Date.now() - startedAt > EDITOR_WAIT_TIMEOUT) {
-        clearInterval(wait);
-        console.log("[DraftDepot] 等不到微信编辑器，放弃灌入");
-      }
+    if (pending) return;
+    if (Date.now() - startedAt > EDITOR_WAIT_TIMEOUT) {
+      clearInterval(wait);
+      console.log("[DraftDepot] 等不到微信编辑器，放弃灌入");
       return;
     }
-    clearInterval(wait);
-    if (filled) return;
-    filled = true;
+    pending = true;
     try {
-      await fillArticle(editors);
+      const jsApi = getJsApi();
+      const state = jsApi ? await getEditorState() : null;
+      const newEditor = !!(state && state.isReady && state.isNew);
+      const oldEditor = getEditors().length >= 2;
+      if (newEditor) {
+        clearInterval(wait);
+        await fillArticle(true);
+      } else if ((!jsApi || (state && state.isReady)) && oldEditor) {
+        // 拿不到 JSAPI（老页面），或它明说了不是新编辑器：按老办法来
+        clearInterval(wait);
+        await fillArticle(false);
+      }
     } catch (err) {
       console.log("[DraftDepot] 灌文章失败", err);
+    } finally {
+      pending = false;
     }
   }, CHECK_INTERVAL);
 }
@@ -117,8 +165,8 @@ const timer = setInterval(() => {
   }
 
   // 已经在编辑页：本轮任务完成，停表，转去等编辑器渲染好后灌文章
-  // TODO 图片：正文里的 src 是 https://app.localhost/images/xxx.png（本程序 WebView2 的虚拟映射），
-  //      微信服务器取不到，粘过去会丢图。要么让 native 把本地图片内联成 data URI，要么先传图床
+  // 图片不用管：正文在 forWeiXin 里已经把 app.localhost/images/...（本程序 WebView2 的虚拟映射，
+  // 微信服务器取不到）内联成了 base64，代码块也带着内联的着色样式，粘过去就是完整的一篇
   if (location.href.includes(EDIT_PAGE_MARK)) {
     clearInterval(timer);
     waitEditorAndFill();

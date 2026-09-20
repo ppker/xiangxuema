@@ -12,6 +12,9 @@ namespace
 	const std::unordered_map<std::wstring, std::wstring> siteHome = {
 		{ L"WeiXin", L"https://mp.weixin.qq.com/" },
 		{ L"CSDN",   L"https://mp.csdn.net/" },
+		// 知乎：直接给写文章的页面。没登录会被它送到登录页，登录成功后又自动回到这个地址，
+		// 所以不需要像微信那样拿 token 拼编辑页
+		{ L"ZhiHu",  L"https://zhuanlan.zhihu.com/write" },
 	};
 
 	/// 与 JS 的 Date.now() 同口径：Unix 纪元起的毫秒数，URL 里的 timestamp 要 13 位

@@ -1,9 +1,12 @@
 import { cssLengthToPx } from "../EditorBar/cssLength";
+import { inlineImages } from "../ImageStore";
+import { highlightCode, isCodeLang, type CodeLangId } from "../CodeHighlight";
 
 /**
  * 把正文 HTML 转成微信公众号编辑器自己的段落结构：
  *   <p style="font-size:14px;line-height:1.75"><span>文字</span><u><span>下划线</span></u></p>
  * 即：块级一律摊平成 p，p 里的每段文本都套一层 span，行内格式（u / s / b / em…）原样留着。
+ * 另外把 <img> 的 src 换成 base64 内嵌图（异步，要读数据目录里的文件）。
  * 只为"转移到微信"这一条链路服务：不进库，也不改编辑器里的内容。
  *
  * 这么转是为了绕开微信那条"行高小于字体大小，多行文本可能重叠"的提示：
@@ -16,9 +19,6 @@ const FONT_SIZE = "14px";
 
 /** 行高：倍数，明显大于字号 */
 const LINE_HEIGHT = "1.75";
-
-/** 段落间距：不给的话段与段会贴在一起 */
-const PARAGRAPH_MARGIN = "0 0 16px";
 
 /** 标题字号：沿用编辑器 #editorContent 里的级差（EditorContent.scss），免得落到微信的默认字号上 */
 const HEADING_FONT_SIZE: Record<string, string> = {
@@ -44,6 +44,14 @@ const AS_IS = new Set(["IMG", "BR", "HR"]);
 
 /** 所有块级标签：用来判断哪些节点不能塞进 p 里 */
 const BLOCK_TAGS = new Set([...AS_P, ...AS_CONTAINER, ...AS_CELL, ...Object.keys(HEADING_FONT_SIZE)]);
+
+/** 清掉外边距：微信自己的段落间距够用，p 上带 margin 会跟它的排版打架。
+ *  长写法（margin-top 之类）也一起清，免得只清了简写留下残余 */
+function clearMargin(el: HTMLElement): void {
+  for (const prop of ["margin", "margin-top", "margin-right", "margin-bottom", "margin-left"]) {
+    el.style.removeProperty(prop);
+  }
+}
 
 function isBlock(node: Node): boolean {
   return node.nodeType === Node.ELEMENT_NODE && BLOCK_TAGS.has((node as HTMLElement).tagName);
@@ -99,7 +107,7 @@ function convertParagraph(el: HTMLElement, children: Node[]): Node[] {
   // 原段落的对齐 / 缩进等样式带过去，字号与行高随后压上，保证行高一定大于字号
   const style = el.getAttribute("style");
   if (style) block.setAttribute("style", style);
-  block.style.margin = PARAGRAPH_MARGIN;
+  clearMargin(block); // 原段落样式里带来的 margin 也一并去掉
   block.style.fontSize = HEADING_FONT_SIZE[tag] ?? FONT_SIZE;
   block.style.lineHeight = LINE_HEIGHT;
 
@@ -117,6 +125,12 @@ function convertParagraph(el: HTMLElement, children: Node[]): Node[] {
 /** 容器（列表 / 引用 / 表格 / 代码块）：保留标签，子节点原样收下 */
 function convertContainer(el: HTMLElement, children: Node[]): Node[] {
   const out = el.cloneNode(false) as HTMLElement;
+  // 引用的结构样式（border-left / padding / 缩进）整条去掉，用微信自己的：
+  // 它自带左侧竖线，我们那套叠上去会打架。只补一个底色——不写的话引用会跟正文糊在一起
+  if (out.tagName === "BLOCKQUOTE") {
+    out.removeAttribute("style");
+    out.style.background = "#f6f6f6";
+  }
   const ratio = lineHeightRatio(out.style.lineHeight, fontSizePx(out));
   if (!Number.isNaN(ratio) && ratio < Number(LINE_HEIGHT)) {
     out.style.lineHeight = LINE_HEIGHT;
@@ -157,7 +171,64 @@ function convert(node: Node): Node[] {
   return convertInline(el, children);
 }
 
-export default function forWeiXin(html: string): string {
+/**
+ * 代码块转成微信自己的 code-snippet 结构——照它编辑器里"粘贴一段代码"生成的 HTML 来的：
+ *
+ *   <pre class="code-snippet code-snippet_nowrap" data-lang="ts">
+ *     <code><span leaf="">…这一行…</span></code>   ← 一行一个 code
+ *     …
+ *   </pre>
+ *
+ * 这么转是为了解决长行被折断：我们自己怎么调 white-space 都没用（实测它会被改写成 pre-wrap，
+ * 保留缩进但允许折行，于是内容总是先折行填满、永远不会溢出，overflow-x 也就白给）。
+ * 而 code-snippet_nowrap 是它自己的类，"不折行"由它自己的样式表保证。
+ *
+ * 着色仍然带内联 color（shiki 那份）：class 要靠它那边的样式表，内联是最稳的。
+ * 字号 12px 与行高 1.6 写在每个 code 上（pre 不带任何样式）。
+ */
+function buildWeiXinCodeBlock(code: string, lang: CodeLangId): HTMLElement {
+  const parsed = new DOMParser().parseFromString(highlightCode(code, lang), "text/html");
+  const shikiPre = parsed.body.firstElementChild;
+
+  const pre = document.createElement("pre");
+  // 容器一律不带内联样式：底色、内边距、滚动条这些交给它自己的 code-snippet 样式表，
+  // 我们自己写的反而会盖掉它的规则。只保留类名（_nowrap 就是靠它的样式表做到不折行的）
+  pre.className = "code-snippet code-snippet_nowrap";
+  pre.dataset.lang = lang;
+
+  // shiki 的每一行（<span class="line">）搬成一个 <code>，与它自己的结构一致
+  for (const line of Array.from((shikiPre ?? parsed.body).querySelectorAll(".line"))) {
+    const lineEl = document.createElement("code");
+    // 一行一块：它的样式表里 pre > code 本来就是块级，写上更稳
+    lineEl.style.display = "block";
+    // 空行也要撑出一行的高度，否则几行空行会挤成一条
+    lineEl.style.minHeight = "1.6em";
+    // 字号与行高写在每行上：pre 上不给样式，这两条必须落在 code 上才有效
+    lineEl.style.fontSize = "12px";
+    lineEl.style.lineHeight = "1.6";
+    const leaf = document.createElement("span");
+    leaf.setAttribute("leaf", "");
+    leaf.innerHTML = line.innerHTML; // 带 shiki 内联颜色的 token
+    lineEl.appendChild(leaf);
+    pre.appendChild(lineEl);
+  }
+  return pre;
+}
+
+/**
+ * 给代码块着色：正文里存的是 <pre><code data-lang="ts">纯文本</code></pre>（干净、可编辑），
+ * 这里换成微信自己的 code-snippet 结构（着色用 shiki 的内联 color）。
+ * 认不出语言的代码块原样留着。
+ */
+function highlightCodeBlocks(root: HTMLElement): void {
+  for (const codeEl of Array.from(root.querySelectorAll<HTMLElement>("code[data-lang]"))) {
+    const lang = codeEl.dataset.lang;
+    if (!isCodeLang(lang)) continue;
+    (codeEl.closest("pre") ?? codeEl).replaceWith(buildWeiXinCodeBlock(codeEl.textContent ?? "", lang));
+  }
+}
+
+export default async function forWeiXin(html: string): Promise<string> {
   const doc = new DOMParser().parseFromString(html, "text/html");
   const root = document.createElement("div");
 
@@ -166,7 +237,6 @@ export default function forWeiXin(html: string): string {
   const flush = (): void => {
     if (pending.length === 0) return;
     const p = document.createElement("p");
-    p.style.margin = PARAGRAPH_MARGIN;
     p.style.fontSize = FONT_SIZE;
     p.style.lineHeight = LINE_HEIGHT;
     pending.forEach((child) => p.appendChild(child));
@@ -183,5 +253,8 @@ export default function forWeiXin(html: string): string {
   }
   flush();
 
+  // 结构收拾完再做两件"补料"的事：这时节点已经是最终进微信的那些，改它们才是改到点子上
+  await inlineImages(root);
+  highlightCodeBlocks(root);
   return root.innerHTML;
 }

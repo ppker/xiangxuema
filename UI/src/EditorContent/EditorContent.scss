@@ -39,4 +39,20 @@
   h6 {
     font-size: 15px !important;
   }
+
+  /* 代码块：外壳是 rooster 的只读 entity，里面是 shiki 着色的 pre（背景与前景色由 shiki 内联给出）。
+     这里只补排版相关的：间距、圆角、横向滚动。整块不可编辑，双击才打开编辑弹层。 */
+  .codeBlock {
+    margin: 8px 0;
+    padding: 10px 12px;
+    border-radius: 3px;
+    overflow-x: auto;
+    font-family: Consolas, "Courier New", monospace;
+    font-size: 13px;
+    line-height: 1.6;
+    tab-size: 4;
+    /* 代码块是只读 entity，移上去不给输入光标（#editorContent 整体是 cursor: text），
+       否则会让用户以为能直接把光标伸进去改代码——改要双击开弹层 */
+    cursor: default;
+  }
 }

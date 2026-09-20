@@ -4,6 +4,7 @@ import CtrlBase from "../CtrlBase";
 import Msg from "../Msg";
 import EditorContent from "../EditorContent/EditorContent";
 import forWeiXin from "../EditorContent/WeiXinHtml";
+import forZhiHu from "../EditorContent/ZhiHuHtml";
 
 /**
  * 发布目标：按钮 title → 站点类型（存进 WindowSite.type）。
@@ -12,8 +13,19 @@ import forWeiXin from "../EditorContent/WeiXinHtml";
  */
 const publishTargets = [
   { title: "发布到微信", type: "WeiXin" },
+  { title: "发布到知乎", type: "ZhiHu" },
   { title: "发布到CSDN", type: "CSDN" },
 ];
+
+/**
+ * 各平台要的正文形态：type → 转换函数（不登记的先原样给）。
+ * 微信要整段摊平成它自己的段落结构、着色靠 shiki 内联色；知乎反过来——只标代码块语言，
+ * 样式一概不塞（它只认自己的语义结构，见 ZhiHuHtml）。图片都由站点脚本在编辑页里传图床。
+ */
+const forSite: Record<string, (html: string) => Promise<string>> = {
+  WeiXin: forWeiXin,
+  ZhiHu: forZhiHu,
+};
 
 /**
  * 编辑器顶部的文章标题栏（模块单例）。
@@ -38,14 +50,16 @@ class EditorTitle extends CtrlBase {
     // 用 title 属性精确锁定按钮，避免依赖 HTML 里 8 个 .publishBtn 的顺序
     for (const target of publishTargets) {
       const btn = this.dom.querySelector<HTMLElement>(`.publishBtn[title="${target.title}"]`);
-      btn.addEventListener("click", () => {
+      // 微信那份要先把图转成 base64（读数据目录里的文件），所以是异步的
+      btn.addEventListener("click", async () => {
+        const content = EditorContent.content;
         // 连同当前标题与正文一起交给 native：site 窗口里的脚本（如 WeiXin.js）进到对方编辑器后会来取。
         // 两个窗口是各自独立的 WebView2，互相看不见，内容只能靠 native 中转
+        const convert = forSite[target.type];
         Msg.invoke("openSite", {
           type: target.type,
           title: this.input.value,
-          // 只有微信要这份收拾过的正文（行高偏小会被判成文字重叠），别家先原样给
-          html: target.type === "WeiXin" ? forWeiXin(EditorContent.content) : EditorContent.content,
+          html: convert ? await convert(content) : content,
         });
       });
     }

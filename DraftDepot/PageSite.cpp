@@ -65,6 +65,11 @@ HRESULT PageSite::onMsgReceived(ICoreWebView2* webview, ICoreWebView2WebMessageR
 		// args: 无；站点脚本进了对方编辑器后来取"待发布的文章"（openSite 时塞进来的），由 WindowSite 交出
 		win->takeArticle(result);
 	}
+	else if (method == L"getImageDir") {
+		// args: 无；自带回包：目录句柄只能随附加对象一起发，成功后直接返回
+		handleGetImageDir(result);
+		return S_OK;
+	}
 	else {
 		// 未知方法回 error：与主 Page 行为对齐，避免前端 invoke 静默 resolve(undefined)
 		std::wstring message = L"unknown method: " + std::wstring(method.c_str());
@@ -73,6 +78,40 @@ HRESULT PageSite::onMsgReceived(ICoreWebView2* webview, ICoreWebView2WebMessageR
 	auto resultStr = result.Stringify();
 	webview->PostWebMessageAsJson(resultStr.data());
 	return S_OK;
+}
+
+void PageSite::handleGetImageDir(JsonObject& result)
+{
+	// 数据目录下的 images 子目录：与主窗口 Page::handleGetImageDir 是同一个目录，但这里只给 READ。
+	// 站点脚本只把图读出来传对方的图床，给它 READ_WRITE 等于让对方页面能在我们的图片目录里增删改写
+	std::error_code ec;
+	auto dir = Env::getDataPath() / L"images";
+	std::filesystem::create_directories(dir, ec);
+
+	ComPtr<ICoreWebView2Environment14> env14;
+	ComPtr<ICoreWebView2FileSystemHandle> dirHandle;
+	ComPtr<ICoreWebView2_23> webview23;
+	if (!ec
+		&& SUCCEEDED(Env::getWebViewEnv()->QueryInterface(IID_PPV_ARGS(&env14)))
+		&& SUCCEEDED(env14->CreateWebFileSystemDirectoryHandle(dir.c_str(),
+			COREWEBVIEW2_FILE_SYSTEM_HANDLE_PERMISSION_READ_ONLY, &dirHandle))
+		&& SUCCEEDED(webview->QueryInterface(IID_PPV_ARGS(&webview23))))
+	{
+		IUnknown* items[] = { dirHandle.Get() };
+		ComPtr<ICoreWebView2ObjectCollection> collection;
+		if (SUCCEEDED(env14->CreateObjectCollection(1, items, &collection)))
+		{
+			// 自带回包：句柄只能随附加对象一起发，成功后直接返回。
+			// 脚本那边 DDMsg.invokeWithObjects("getImageDir") 拿到的 objects[0] 就是
+			// FileSystemDirectoryHandle，之后 getFileHandle(文件名) 取文件全在它自己那边完成
+			auto json = result.Stringify();
+			webview23->PostWebMessageAsJsonWithAdditionalObjects(json.c_str(), collection.Get());
+			return;
+		}
+	}
+	result.SetNamedValue(L"error", JsonValue::CreateStringValue(L"获取图片目录失败"));
+	auto json = result.Stringify();
+	webview->PostWebMessageAsJson(json.c_str());
 }
 
 HRESULT PageSite::onCloseWindow(ICoreWebView2* sender, IUnknown* args)

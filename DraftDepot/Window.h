@@ -34,4 +34,3 @@ private:
 	std::unique_ptr<Page> page;
 	ComPtr<ICoreWebView2Controller> ctrl;
 };
-

@@ -2,6 +2,7 @@ import "./EditorBar.scss";
 import html from "./EditorBar.html?raw";
 import CtrlBase from "../CtrlBase";
 import Heading from "./Heading/Heading";
+import Code from "./Code/Code";
 import FontFamily from "./FontFamily/FontFamily";
 import FontSize from "./FontSize/FontSize";
 import TextColor from "./TextColor/TextColor";
@@ -45,8 +46,8 @@ const GROUPS: CtrlBase[][] = [
   [TextColor, BackgroundColor, quoteButton],
   [Align, LineHeight],
   [listBulletButton, listNumberButton],
-  // 插入类：链接 + 图片
-  [Link, linkRemoveButton, imageButton],
+  // 插入类：链接 + 图片 + 代码块
+  [Link, linkRemoveButton, imageButton, Code],
 ];
 
 /**

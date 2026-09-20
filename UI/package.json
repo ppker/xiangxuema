@@ -20,6 +20,7 @@
     "roosterjs-content-model-api": "^9.59.0",
     "roosterjs-content-model-core": "^9.59.0",
     "roosterjs-content-model-dom": "^9.59.0",
-    "roosterjs-content-model-types": "^9.59.0"
+    "roosterjs-content-model-types": "^9.59.0",
+    "shiki": "^4.4.3"
   }
 }

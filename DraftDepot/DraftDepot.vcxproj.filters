@@ -61,6 +61,7 @@
     <None Include="UI\index.html" />
     <None Include="UI\iconfont.css" />
     <None Include="JS\WeiXin.js" />
+    <None Include="JS\ZhiHu.js" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Env.h">

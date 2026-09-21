@@ -1,12 +1,12 @@
 import { cssLengthToPx } from "../EditorBar/cssLength";
-import { inlineImages } from "../ImageStore";
 import { highlightCode, isCodeLang, type CodeLangId } from "../CodeHighlight";
 
 /**
  * 把正文 HTML 转成微信公众号编辑器自己的段落结构：
  *   <p style="font-size:14px;line-height:1.75"><span>文字</span><u><span>下划线</span></u></p>
  * 即：块级一律摊平成 p，p 里的每段文本都套一层 span，行内格式（u / s / b / em…）原样留着。
- * 另外把 <img> 的 src 换成 base64 内嵌图（异步，要读数据目录里的文件）。
+ * 图片 src 原样留着 https://app.localhost/images/<文件名>：那是本程序 WebView2 的虚拟映射，
+ * 微信的服务器取不到，由站点脚本（JS/WeiXin.js）在编辑页里传它的图床后再换地址。
  * 只为"转移到微信"这一条链路服务：不进库，也不改编辑器里的内容。
  *
  * 这么转是为了绕开微信那条"行高小于字体大小，多行文本可能重叠"的提示：
@@ -228,7 +228,7 @@ function highlightCodeBlocks(root: HTMLElement): void {
   }
 }
 
-export default async function forWeiXin(html: string): Promise<string> {
+export default function forWeiXin(html: string): string {
   const doc = new DOMParser().parseFromString(html, "text/html");
   const root = document.createElement("div");
 
@@ -253,8 +253,8 @@ export default async function forWeiXin(html: string): Promise<string> {
   }
   flush();
 
-  // 结构收拾完再做两件"补料"的事：这时节点已经是最终进微信的那些，改它们才是改到点子上
-  await inlineImages(root);
+  // 结构收拾完再给代码块补料：这时节点已经是最终进微信的那些，改它们才是改到点子上。
+  // 图片不动：src 原样留着，由站点脚本传图床（见文件头说明）
   highlightCodeBlocks(root);
   return root.innerHTML;
 }

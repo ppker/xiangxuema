@@ -33,6 +33,10 @@ public:
 	void minimize();
 	void maximize();
 	void restore();
+	/// 关掉本窗口：站点脚本（如 CnBlogs.js）碰到"这一步没法往下走"时用。
+	/// 只投一个 WM_CLOSE 就返回——真正的销毁走窗口消息（onDestroy 里摘注册表、析构对象），
+	/// 调用方（PageSite 的消息回调）还站在自己的栈上，直接 DestroyWindow 等于把自己删了
+	void close();
 	/// args: { key, value }；站点脚本（如 WeiXin.js 抓到 token）回传参数，
 	/// 与已加载的 config 比对，不同才写回 site 表并更新内存；返回 { ok, changed }
 	void setParam(const JsonObject& params, JsonObject& result);

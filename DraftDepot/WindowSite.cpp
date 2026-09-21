@@ -15,6 +15,8 @@ namespace
 		// 所以不需要像微信那样拿 token 拼编辑页（两个站点的注入脚本在编辑页里等文章灌入）
 		{ L"ZhiHu",  L"https://zhuanlan.zhihu.com/write" },
 		{ L"CSDN",   L"https://mp.csdn.net/mp_blog/creation/editor" },
+		// 博客园：直接给写文章的页面，没登录会被它送到登录页，登录成功后又自动回来（与知乎同一套）
+		{ L"CnBlogs", L"https://i.cnblogs.com/posts/edit" },
 		// 开源中国：直接给写文章的页面（AI 写作页），没登录会被它送到登录页，登录成功后又自动回来。
 		// 地址里的 u/1432189 是账号 id，换账号登录要同步改这里（脚本那边只认 /blog/ai-write 结尾）
 		{ L"OSC",    L"https://my.oschina.net/u/1432189/blog/ai-write" },
@@ -116,6 +118,12 @@ void WindowSite::maximize()
 void WindowSite::restore()
 {
 	ShowWindow(hwnd, SW_RESTORE);
+}
+
+void WindowSite::close()
+{
+	// 见 WindowSite.h：投完就回来，销毁等窗口消息自己走完
+	PostMessage(hwnd, WM_CLOSE, 0, 0);
 }
 
 void WindowSite::setParam(const JsonObject& params, JsonObject& result)

@@ -66,6 +66,23 @@ namespace
             "  UNIQUE (name, param_key)"
             ");",
 
+            // ========== 图片在对方图床上的地址（按"图片文件 + 站点"记一条） ==========
+            // 正文里的图存在本地 images 目录，发布时才由站点脚本传对方图床；传出来的地址记在这里，
+            // 下次发布前先查：重发这一篇、或别的文章用到同一张图，都不必再传一遍，
+            // 对方图床也不会堆重复副本（取地址那一头见 JS/Msg.js 的 imageUrl）。
+            // (image_name, site_name) 唯一：一张图在一个站点只留一条，重复传就覆盖成新地址；
+            // 唯一约束顺带把索引也建了，查询正是按这两列，不必再单独建一个。
+            // 文件名（img_xxx.png）是存图时一次性生成、之后从不改写的，
+            // 所以"同名"必然是同一份内容，拿它当缓存键不会误命中
+            "CREATE TABLE IF NOT EXISTS image_site ("
+            "  id         INTEGER PRIMARY KEY AUTOINCREMENT,"
+            "  image_name TEXT    NOT NULL,"
+            "  site_name  TEXT    NOT NULL,"
+            "  url        TEXT    NOT NULL,"
+            "  created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),"
+            "  UNIQUE (image_name, site_name)"
+            ");",
+
             // ========== 索引 ==========
             "CREATE INDEX IF NOT EXISTS idx_category_parent ON category(parent_id);",
             "CREATE INDEX IF NOT EXISTS idx_article_category ON article(category_id);",

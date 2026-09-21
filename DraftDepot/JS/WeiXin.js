@@ -3,6 +3,18 @@
 // 职责：
 //   1. 盯住登录态与 token——失效就回登录页，拿到 token 就回传 C++ 存库，并直奔新建图文的编辑页；
 //   2. 进了编辑页就把"待发布的文章"（点发布按钮时由主编辑器交给 native 的）灌进微信编辑器。
+//
+// 图片是唯一要额外跑一趟的事：正文里的图是 https://app.localhost/images/<文件名>（本程序 WebView2
+// 的虚拟映射，微信的服务器取不到）。早先的做法是在主编辑器那边就把图读成 base64 内联进 <img src>，
+// 现在改成跟知乎/CSDN 同一套：按文件名从本机图片目录取文件，走它自己的素材上传接口传到图床，
+// 拿到 cdn_url 换掉正文里的 src 再灌进去。取文件 + 传图床 + 换地址这套四个站点一模一样，收在
+// Msg.js 里共用一份（DDMsg.uploadImages），这里只留微信自己的上传接口 uploadImage。
+// 目录句柄只能由 native 给：脚本跑在网页上下文里，碰不到本机文件系统，光有路径也造不出 File 对象。
+// 传过的图不再重复传：地址记在 image_site 表里，下次直接取（见 Msg.js 的 imageUrl）。
+//
+// 上传接口要的身份参数比别家多：token（地址上有）、ticket 与 svr_time（页面全局变量 wx.* 上有），
+// 再加 cookie 里的 ticket_id —— 它是 HttpOnly，document.cookie 读不到，只能问 native 要
+// （DDMsg.invoke("getCookie")，见 PageSite::handleGetCookie）。
 
 // 新建图文的编辑页：拿到 token 后拼这个地址
 const CREATE_ARTICLE_URL =
@@ -13,6 +25,9 @@ const EDIT_PAGE_MARK =
   "cgi-bin/appmsg?t=media/appmsg_edit_v2&action=edit&isNew=1&type=77&createType=0";
 // 登录失效兜底：页面上"请重新<a id="jumpUrl">登录</a>"本身就指向登录页，取不到就用首页
 const LOGIN_URL = "https://mp.weixin.qq.com/";
+
+/** 图片上传接口：微信自己的素材上传，身份参数一律拼在 URL 上（见 buildUploadUrl） */
+const UPLOAD_IMAGE_URL = "https://mp.weixin.qq.com/cgi-bin/filetransfer";
 
 const CHECK_INTERVAL = 600;
 // 编辑页是 SPA：地址先落到，编辑器随后才初始化完，所以要再盯着等一会儿。
@@ -27,6 +42,76 @@ let filled = false; // 本文档已经灌过一轮：页面自身的后续刷新
 function getToken() {
   const matched = /[?&]token=(\d+)/.exec(location.href);
   return matched ? matched[1] : "";
+}
+
+/** ticket_id：cookie 里的（HttpOnly，页面读不到），取一次就够；没有就给空串，URL 上留空 */
+let ticketId = null;
+
+/**
+ * 向 native 要 ticket_id：它是 HttpOnly，document.cookie 里没有，只能让 native 代读
+ * （CookieManager 在 native 侧，不受 HttpOnly 限制）。拿不到就退 slave_user，再没有就空着
+ */
+async function getTicketId() {
+  if (ticketId === null) {
+    const cookies = await DDMsg.invoke("getCookie", { names: ["ticket_id", "slave_user"] });
+    ticketId = (cookies && (cookies.ticket_id || cookies.slave_user)) || "";
+  }
+  return ticketId;
+}
+
+/** 页面全局变量 wx.* 上的身份参数：新编辑器页还在用这套（老编辑器同源于此） */
+function wxData(path, fallback = "") {
+  const value = path.split(".").reduce((obj, key) => (obj == null ? obj : obj[key]), window.wx);
+  return value == null ? fallback : value;
+}
+
+/**
+ * 拼上传地址：token / ticket / svr_time / ticket_id 全是它验身份用的，缺一个都传不上去。
+ * seq 与 t 是它自己防缓存用的时间戳与随机数，随手造一个就行
+ */
+async function buildUploadUrl() {
+  const params = new URLSearchParams({
+    action: "upload_material",
+    f: "json",
+    scene: "8",
+    writetype: "doublewrite",
+    groupid: "1",
+    ticket_id: await getTicketId(),
+    ticket: wxData("commonData.data.ticket"),
+    svr_time: wxData("cgiData.svr_time", Math.floor(Date.now() / 1000)),
+    token: getToken(),
+    lang: "zh_CN",
+    seq: Date.now(),
+    t: Math.random(),
+  });
+  return UPLOAD_IMAGE_URL + "?" + params.toString();
+}
+
+/** 上传序号：表单里的 id 字段（WebUploader 那套惯例），每张图一个 */
+let uploadSeq = 0;
+
+/**
+ * 上传一张图，拿到它的图床地址。
+ * 表单除 file（二进制）外还带 id / name / type / lastModifiedDate / size —— 它那套上传组件
+ * （WebUploader）的惯例字段，照它自己发的那次补齐，缺了可能认不出这是个图片。
+ * 返回 JSON 里 base_resp.ret 为 0 才算成，地址在 cdn_url
+ */
+async function uploadImage(file) {
+  const form = new FormData();
+  form.append("id", "WU_FILE_" + uploadSeq++);
+  form.append("name", file.name);
+  form.append("type", file.type || "image/png");
+  form.append("lastModifiedDate", new Date(file.lastModified).toString());
+  form.append("size", file.size);
+  form.append("file", file);
+  const res = await fetch(await buildUploadUrl(), { method: "POST", body: form, credentials: "include" });
+  if (!res.ok) throw new Error("上传图片失败，HTTP " + res.status);
+  const data = await res.json();
+  if (!data.base_resp || data.base_resp.ret !== 0) {
+    throw new Error("上传图片失败：" + (((data.base_resp || {}).err_msg) || "未知错误"));
+  }
+  if (!data.cdn_url) throw new Error("上传图片没返回地址");
+  return data.cdn_url;
 }
 
 /** 微信用的 ProseMirror 编辑器：第 0 个是标题输入框，第 1 个是正文 */
@@ -101,10 +186,11 @@ async function fillArticle(useApi) {
   // 标题没有对应的 JSAPI（官方只给了正文相关的接口），还是往标题输入框里塞
   const editors = getEditors();
   if (article.title && editors[0]) setTitle(editors[0], article.title);
-  if (article.html) {
-    if (useApi) await setContentByApi(article.html);
-    else if (editors[1]) setContentByPaste(editors[1], article.html);
-  }
+  // 图先换成微信图床的地址（传过的直接取旧地址，见 Msg.js），再整篇灌进去
+  const html = await DDMsg.uploadImages(article.html, uploadImage);
+  if (!html) return;
+  if (useApi) await setContentByApi(html);
+  else if (editors[1]) setContentByPaste(editors[1], html);
 }
 
 /**
@@ -131,11 +217,12 @@ function waitEditorAndFill() {
       const oldEditor = getEditors().length >= 2;
       if (newEditor) {
         clearInterval(wait);
-        await fillArticle(true);
+        // 传图 + 灌标题正文这一整段都盖着遮罩：那期间页面是半截的，别让人插手（见 Msg.js）
+        await DDMsg.withMask(() => fillArticle(true));
       } else if ((!jsApi || (state && state.isReady)) && oldEditor) {
         // 拿不到 JSAPI（老页面），或它明说了不是新编辑器：按老办法来
         clearInterval(wait);
-        await fillArticle(false);
+        await DDMsg.withMask(() => fillArticle(false));
       }
     } catch (err) {
       console.log("[DraftDepot] 灌文章失败", err);
@@ -169,8 +256,6 @@ const timer = setInterval(() => {
   }
 
   // 已经在编辑页：本轮任务完成，停表，转去等编辑器渲染好后灌文章
-  // 图片不用管：正文在 forWeiXin 里已经把 app.localhost/images/...（本程序 WebView2 的虚拟映射，
-  // 微信服务器取不到）内联成了 base64，代码块也带着内联的着色样式，粘过去就是完整的一篇
   if (location.href.includes(EDIT_PAGE_MARK)) {
     clearInterval(timer);
     waitEditorAndFill();

@@ -1,6 +1,7 @@
 #include "Env.h"
 #include "PageSite.h"
 #include "WindowSite.h"
+#include "Db/ImageSite.h"
 #include "Util.h"
 #include <winrt/Windows.Foundation.Collections.h> // 提供 IMap::HasKey 的定义，避免 C3779
 
@@ -70,6 +71,23 @@ HRESULT PageSite::onMsgReceived(ICoreWebView2* webview, ICoreWebView2WebMessageR
 		handleGetImageDir(result);
 		return S_OK;
 	}
+	else if (method == L"getCookie") {
+		// args: { url?, name?, names? }；自带回包：CookieManager 是回调式的，回包在回调里发
+		handleGetCookie(param, result);
+		return S_OK;
+	}
+	else if (method == L"getImageUrl") {
+		// args: { name }；站点脚本传图前先查这张图在本站点传过没有，回 { url }（没传过是空串）
+		handleGetImageUrl(param, result);
+	}
+	else if (method == L"setImageUrl") {
+		// args: { name, url }；传成功后把地址记下来，下次发布直接取，不必再传一遍
+		handleSetImageUrl(param, result);
+	}
+	else if (method == L"notice") {
+		// args: { text, url? }；站点脚本没法往下走时提示一句，之后开浏览器 + 关窗（见 handleNotice）
+		handleNotice(param, result);
+	}
 	else {
 		// 未知方法回 error：与主 Page 行为对齐，避免前端 invoke 静默 resolve(undefined)
 		std::wstring message = L"unknown method: " + std::wstring(method.c_str());
@@ -112,6 +130,125 @@ void PageSite::handleGetImageDir(JsonObject& result)
 	result.SetNamedValue(L"error", JsonValue::CreateStringValue(L"获取图片目录失败"));
 	auto json = result.Stringify();
 	webview->PostWebMessageAsJson(json.c_str());
+}
+
+void PageSite::handleGetCookie(JsonObject& param, JsonObject& result)
+{
+	JsonObject args = Util::msgArgs(param);
+
+	// 取哪个源的 cookie：不给就用本窗口打开的那个地址——站点脚本要的通常就是自己这一个
+	std::wstring target = url;
+	std::wstring givenUrl = Util::argString(args, L"url");
+	if (!givenUrl.empty()) target = givenUrl;
+
+	// 要哪几个 cookie：name（单个）/ names（多个）都行；都不给就把这个源下的 cookie 全给
+	std::vector<std::wstring> names;
+	std::wstring name = Util::argString(args, L"name");
+	if (!name.empty()) names.push_back(name);
+	if (args.HasKey(L"names")) {
+		auto raw = args.GetNamedValue(L"names");
+		if (raw.ValueType() == JsonValueType::Array) {
+			for (auto&& item : raw.GetArray()) {
+				// 数组里混进非字符串（null / 数字）就跳过：调用方写错了也不至于整条消息失败
+				if (item.ValueType() == JsonValueType::String) {
+					names.push_back(std::wstring{ item.GetString().c_str() });
+				}
+			}
+		}
+	}
+
+	ComPtr<ICoreWebView2_2> webview2;
+	ComPtr<ICoreWebView2CookieManager> cookieMgr;
+	if (FAILED(webview->QueryInterface(IID_PPV_ARGS(&webview2)))
+		|| FAILED(webview2->get_CookieManager(&cookieMgr)))
+	{
+		result.SetNamedValue(L"error", JsonValue::CreateStringValue(L"取不到 CookieManager"));
+		auto json = result.Stringify();
+		webview->PostWebMessageAsJson(json.c_str());
+		return;
+	}
+
+	// GetCookies 是回调式的，回包只能在回调里发：webview 拷一份 ComPtr 跟着回调走——
+	// 那会儿本对象可能已经随着窗口关掉没了，但 webview 还在就还能把包发出去
+	ComPtr<ICoreWebView2> poster = webview;
+	JsonObject reply = result;
+	cookieMgr->GetCookies(target.c_str(),
+		Callback<ICoreWebView2GetCookiesCompletedHandler>(
+			[poster, reply, names](HRESULT errorCode, ICoreWebView2CookieList* list) -> HRESULT
+			{
+				JsonObject out = reply; // 拷一份再往里塞结果，免得动到捕获的那份（回调不带 mutable）
+				if (FAILED(errorCode) || !list) {
+					out.SetNamedValue(L"error", JsonValue::CreateStringValue(L"读取 cookie 失败"));
+					auto failed = out.Stringify();
+					poster->PostWebMessageAsJson(failed.c_str());
+					return S_OK;
+				}
+				JsonObject values;
+				UINT count = 0;
+				list->get_Count(&count);
+				for (UINT i = 0; i < count; i++) {
+					ComPtr<ICoreWebView2Cookie> cookie;
+					if (FAILED(list->GetValueAtIndex(i, &cookie)) || !cookie) continue;
+					PWSTR nameRaw = nullptr;
+					if (FAILED(cookie->get_Name(&nameRaw)) || !nameRaw) continue;
+					std::wstring cookieName(nameRaw);
+					CoTaskMemFree(nameRaw);
+					// 指定了名字就只交这几个：别把整站 cookie（含 HttpOnly 的那些）都递给网页
+					bool wanted = names.empty();
+					for (const auto& wanted2 : names) {
+						if (wanted2 == cookieName) {
+							wanted = true;
+							break;
+						}
+					}
+					if (!wanted) continue;
+					PWSTR valueRaw = nullptr;
+					if (FAILED(cookie->get_Value(&valueRaw)) || !valueRaw) continue;
+					values.SetNamedValue(cookieName.c_str(), JsonValue::CreateStringValue(valueRaw));
+					CoTaskMemFree(valueRaw);
+				}
+				// 一律回"名字 → 值"的字典：脚本那边 cookies.ticket_id 这样取，给几个名字都一样
+				out.SetNamedValue(L"result", values);
+				auto json = out.Stringify();
+				poster->PostWebMessageAsJson(json.c_str());
+				return S_OK;
+			}).Get());
+}
+
+void PageSite::handleGetImageUrl(JsonObject& param, JsonObject& result)
+{
+	JsonObject args = Util::msgArgs(param);
+	auto name = Util::argString(args, L"name");
+	// 站点名用窗口 type（跟 site 表的 name 是同一套），不由脚本传：脚本按站点各写一份，
+	// 让它传就得在四个地方各写对一个字符串，错了会把地址记到别的站点名下
+	auto url = ImageSite::urlOf(name, win->type);
+
+	// 没传过才是常态（这篇头一回发）：给空 url，脚本那边照旧传一次
+	JsonObject value;
+	value.SetNamedValue(L"url", JsonValue::CreateStringValue(url));
+	result.SetNamedValue(L"result", value);
+}
+
+void PageSite::handleSetImageUrl(JsonObject& param, JsonObject& result)
+{
+	JsonObject args = Util::msgArgs(param);
+	auto name = Util::argString(args, L"name");
+	auto url = Util::argString(args, L"url");
+	ImageSite::save(name, win->type, url);
+}
+
+void PageSite::handleNotice(JsonObject& param, JsonObject& result)
+{
+	JsonObject args = Util::msgArgs(param);
+	auto text = Util::argString(args, L"text");
+	auto link = Util::argString(args, L"url");
+
+	// 模态：等用户点确定才往下走，顺序不能反——先开浏览器再弹框等于还没看提示就把人送走了
+	MessageBox(win->hwnd, text.c_str(), L"提示", MB_OK | MB_ICONINFORMATION);
+	// 系统默认浏览器打开：站点脚本在网页上下文里只能改自己的 location，开不了外部浏览器
+	if (!link.empty()) ShellExecute(nullptr, L"open", link.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+	win->close();
+	result.SetNamedValue(L"result", JsonValue::CreateBooleanValue(true));
 }
 
 HRESULT PageSite::onCloseWindow(ICoreWebView2* sender, IUnknown* args)

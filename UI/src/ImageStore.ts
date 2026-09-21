@@ -58,41 +58,8 @@ export async function saveImage(blob: Blob, ext: string): Promise<string> {
 }
 
 /**
- * 读回正文里引用的某张图（https://app.localhost/images/<文件名>），供转 base64 这类用途。
- * 走目录句柄直接读文件，不走网络：页面与 app.localhost 不同源，fetch 会被 CORS 挡掉。
- * @returns 文件内容；不是我们图片目录里的地址、或文件已经不在了，抛出（调用方按"拿不到"处理）
+ * 正文里的图一律以 https://app.localhost/images/<文件名> 的形态入库与传递：
+ * 对方站点取不到这个地址，所以发布时由站点脚本在对方编辑页里向 native 要图片目录句柄，
+ * 按文件名取出文件传对方的图床，拿到地址再换掉正文里的 src
+ * （见 JS/WeiXin.js、JS/ZhiHu.js、JS/CSDN.js、JS/OSC.js）。
  */
-export async function readImage(src: string): Promise<Blob> {
-  const name = src.startsWith(IMAGE_URL_PREFIX) ? src.slice(IMAGE_URL_PREFIX.length) : "";
-  if (!name) throw new Error(`不是图片目录里的地址: ${src}`);
-  const dir = await getImageDir();
-  const fileHandle = await dir.getFileHandle(name);
-  return await fileHandle.getFile();
-}
-
-/** Blob → data: URL（base64）：读的是原始字节，不做二次编码，图片质量与格式都不变 */
-export function toDataUrl(blob: Blob): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = (): void => resolve(reader.result as string);
-    reader.onerror = (): void => reject(reader.error);
-    reader.readAsDataURL(blob);
-  });
-}
-
-/**
- * 发布到微信前：把一棵 DOM 树里的 <img> 就地换成 base64 内嵌图。
- * （知乎不走这条：它在编辑页里自己拿图片目录句柄读文件传图床，见 JS/ZhiHu.js）
- * 拿不到的（外链图、文件已被删）保留原地址：对方编辑器会自己按外链去重传。
- */
-export async function inlineImages(root: HTMLElement): Promise<void> {
-  const images = Array.from(root.querySelectorAll("img"));
-  await Promise.all(
-    images.map(async (img) => {
-      const src = img.getAttribute("src");
-      if (!src || src.startsWith("data:")) return;
-      const blob = await readImage(src).catch(() => null);
-      if (blob) img.setAttribute("src", await toDataUrl(blob));
-    }),
-  );
-}

@@ -1,17 +1,18 @@
 import { isCodeLang } from "../CodeHighlight";
 
 /**
- * 把正文 HTML 转成 Markdown（只为"发布到开源中国"这条链路服务，不进库、不改编辑器内容）。
- * OSC 的写作页是 Markdown 编辑器，所以这次不像微信/知乎/CSDN 那样给 HTML，而要给一段 Markdown 文本。
+ * 把正文 HTML 转成 Markdown（只为"发布到开源中国 / 博客园"这两条链路服务，不进库、不改编辑器内容）。
+ * 这两家的写作页都是 Markdown 编辑器，所以不像微信/知乎/CSDN 那样给 HTML，而要给一段 Markdown 文本。
  *
  * 转换取"Markdown 能表达的那些语义"，具体取舍：
  *   1. 代码块 → 围栏（``` + 语言）。语言本来就在我们的 data-lang 上（见 CodeBlock.ts 的入库形态），
  *      直接抄进围栏就行，比从 class 里猜还准；
  *   2. 图片 → ![alt](src)，**src 原样保留** https://app.localhost/images/<文件名>：
- *      那是本程序 WebView2 的虚拟映射，OSC 的服务器取不到；站点脚本（JS/OSC.js）在写作页里
+ *      那是本程序 WebView2 的虚拟映射，对方的服务器取不到；站点脚本（JS/OSC.js）在写作页里
  *      向 native 要一次图片目录句柄，按文件名取出文件传它的图床后再换掉地址（与知乎/CSDN 同一套）；
+ *      博客园那条还没接（JS/CnBlogs.js 现在不传图），所以那边的图暂时是死链；
  *   3. 装饰性样式（文字色 / 背景色 / 字体 / 字号 / 行高 / 对齐）**一律丢掉**：Markdown 没这套语法，
- *      留着只能写成内联 HTML，而 OSC 那边多半也不会认；
+ *      留着只能写成内联 HTML，而那边多半也不会认；
  *   4. 下划线与上/下标 → 保留成内联 HTML（<u> / <sup> / <sub>）：这几个在中文技术文里真会用到，
  *      GFM 普遍认内联 HTML，丢掉就真没了。
  *

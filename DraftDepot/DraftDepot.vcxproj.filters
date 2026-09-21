@@ -48,6 +48,9 @@
     <ClCompile Include="Db\Image.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="Db\ImageSite.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
     <ClCompile Include="Db\Site.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
@@ -92,6 +95,9 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="Db\Image.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="Db\ImageSite.h">
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="Db\Site.h">

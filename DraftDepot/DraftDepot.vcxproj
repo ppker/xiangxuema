@@ -153,6 +153,7 @@
     <ClCompile Include="Db\Article.cpp" />
     <ClCompile Include="Db\Category.cpp" />
     <ClCompile Include="Db\Image.cpp" />
+    <ClCompile Include="Db\ImageSite.cpp" />
     <ClCompile Include="Db\Db.cpp" />
     <ClCompile Include="Db\Site.cpp" />
     <ClCompile Include="Env.cpp" />
@@ -168,6 +169,7 @@
     <None Include="JS\WeiXin.js" />
     <None Include="JS\ZhiHu.js" />
     <None Include="JS\CSDN.js" />
+    <None Include="JS\CnBlogs.js" />
     <None Include="packages.config" />
     <None Include="UI\iconfont.css" />
     <None Include="UI\index.html" />
@@ -176,6 +178,7 @@
   <ItemGroup>
     <ClInclude Include="Db\Article.h" />
     <ClInclude Include="Db\Image.h" />
+    <ClInclude Include="Db\ImageSite.h" />
     <ClInclude Include="Db\Category.h" />
     <ClInclude Include="Db\Db.h" />
     <ClInclude Include="Db\Site.h" />

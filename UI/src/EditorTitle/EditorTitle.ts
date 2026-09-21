@@ -17,6 +17,7 @@ const publishTargets = [
   { title: "发布到微信", type: "WeiXin" },
   { title: "发布到知乎", type: "ZhiHu" },
   { title: "发布到CSDN", type: "CSDN" },
+  { title: "发布到博客园", type: "CnBlogs" },
   { title: "发布到开源中国", type: "OSC" },
 ];
 
@@ -24,14 +25,16 @@ const publishTargets = [
  * 各平台要的正文形态：type → 转换函数（不登记的先原样给）。
  * 微信要整段摊平成它自己的段落结构、着色靠 shiki 内联色；知乎反过来——只标代码块语言，
  * 样式一概不塞（它只认自己的语义结构，见 ZhiHuHtml）；CSDN 与知乎同一套（见 CSDNHtml）。
- * 开源中国是 Markdown 编辑器，所以它不是"另一种 HTML"，而是整篇转 Markdown（见 Markdown）。
- * 图片都由站点脚本在对方编辑页里传图床（见 JS/ZhiHu.js、JS/CSDN.js、JS/OSC.js）。
+ * 开源中国与博客园都是 Markdown 编辑器，所以它们不是"另一种 HTML"，而是整篇转 Markdown（见 Markdown）。
+ * 图片都由站点脚本在对方编辑页里传图床（见 JS/WeiXin.js、JS/ZhiHu.js、JS/CSDN.js、JS/OSC.js；
+ * 博客园那条暂时还没接，图是死链）。
  */
 const forSite: Record<string, (html: string) => Promise<string> | string> = {
   WeiXin: forWeiXin,
   ZhiHu: forZhiHu,
   CSDN: forCSDN,
   OSC: toMarkdown,
+  CnBlogs: toMarkdown,
 };
 
 /**
@@ -57,7 +60,7 @@ class EditorTitle extends CtrlBase {
     // 用 title 属性精确锁定按钮，避免依赖 HTML 里 8 个 .publishBtn 的顺序
     for (const target of publishTargets) {
       const btn = this.dom.querySelector<HTMLElement>(`.publishBtn[title="${target.title}"]`);
-      // 微信那份要先把图转成 base64（读数据目录里的文件），所以是异步的
+      // 转换可能是异步的（转 Markdown 那份要读数据目录），所以这里一律 await
       btn.addEventListener("click", async () => {
         const content = EditorContent.content;
         // 连同当前标题与正文一起交给 native：site 窗口里的脚本（如 WeiXin.js）进到对方编辑器后会来取。

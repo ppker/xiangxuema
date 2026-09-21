@@ -8,6 +8,7 @@ ZhiHu.js RCDATA "JS/ZhiHu.js"
 CSDN.js RCDATA "JS/CSDN.js"
 CnBlogs.js RCDATA "JS/CnBlogs.js"
 OSC.js RCDATA "JS/OSC.js"
+JueJin.js RCDATA "JS/JueJin.js"
 100 ICON "logo.ico"
 
 VS_VERSION_INFO VERSIONINFO

@@ -1,8 +1,8 @@
 import { isCodeLang } from "../CodeHighlight";
 
 /**
- * 把正文 HTML 转成 Markdown（只为"发布到开源中国 / 博客园"这两条链路服务，不进库、不改编辑器内容）。
- * 这两家的写作页都是 Markdown 编辑器，所以不像微信/知乎/CSDN 那样给 HTML，而要给一段 Markdown 文本。
+ * 把正文 HTML 转成 Markdown（只为"发布到开源中国 / 博客园 / 掘金"这三条链路服务，不进库、不改编辑器内容）。
+ * 这三家的写作页都是 Markdown 编辑器，所以不像微信/知乎/CSDN 那样给 HTML，而要给一段 Markdown 文本。
  *
  * 转换取"Markdown 能表达的那些语义"，具体取舍：
  *   1. 代码块 → 围栏（``` + 语言）。语言本来就在我们的 data-lang 上（见 CodeBlock.ts 的入库形态），
@@ -186,9 +186,15 @@ function renderBlocks(node: Node): string[] {
       const text = renderInline(el).trim();
       if (text) lines.push(`${"#".repeat(level)} ${text}`);
     } else if (el.tagName === "BLOCKQUOTE") {
-      // 逐行加 "> "：里面的每一段、每一个列表项都要带，否则只有第一行算引用。
-      // 整段合成一个块——拆成多个块的话，块间的空行会把引用截断成好几节
-      const inner = renderBlocks(el).map((line) => `> ${line}`);
+      // 引用里的每一行都要带 "> "（空行只带 ">"，不留尾空格），否则只有第一行算引用：
+      // renderBlocks 出来的一项可能自己就是好几行（列表、代码块、<br> 造的硬换行），
+      // 所以先按块拼好再拆成行，逐行加前缀——光给每项的第一行加，后面那些会掉出引用。
+      // 块间要空行：挨着写的两行在 Markdown 里是同一段的软换行，渲染出来仍是一行，
+      // 编辑器里明明是两行（引用里敲回车就是两个块），到这儿却并成了一句
+      const inner = renderBlocks(el)
+        .join("\n\n")
+        .split("\n")
+        .map((line) => (line ? `> ${line}` : ">"));
       if (inner.length) lines.push(inner.join("\n"));
     } else if (el.tagName === "UL" || el.tagName === "OL") {
       // 同理：一个列表是一个块，项与项之间只换行，不能空行（空行在 Markdown 里是"松散列表"，

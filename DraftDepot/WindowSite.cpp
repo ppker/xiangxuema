@@ -15,6 +15,9 @@ namespace
 		// 所以不需要像微信那样拿 token 拼编辑页（两个站点的注入脚本在编辑页里等文章灌入）
 		{ L"ZhiHu",  L"https://zhuanlan.zhihu.com/write" },
 		{ L"CSDN",   L"https://mp.csdn.net/mp_blog/creation/editor" },
+		// 开源中国：直接给写文章的页面（AI 写作页），没登录会被它送到登录页，登录成功后又自动回来。
+		// 地址里的 u/1432189 是账号 id，换账号登录要同步改这里（脚本那边只认 /blog/ai-write 结尾）
+		{ L"OSC",    L"https://my.oschina.net/u/1432189/blog/ai-write" },
 	};
 
 	/// 与 JS 的 Date.now() 同口径：Unix 纪元起的毫秒数，URL 里的 timestamp 要 13 位

@@ -6,28 +6,32 @@ import EditorContent from "../EditorContent/EditorContent";
 import forWeiXin from "../EditorContent/WeiXinHtml";
 import forZhiHu from "../EditorContent/ZhiHuHtml";
 import forCSDN from "../EditorContent/CSDNHtml";
+import toMarkdown from "../EditorContent/Markdown";
 
 /**
  * 发布目标：按钮 title → 站点类型（存进 WindowSite.type）。
  * 不再带 URL：打开哪个地址由 native 按 type 决定（微信有 token 就直接进编辑页）。
- * 加平台只往这里加一条，native 不用改。
+ * 加平台只往这里加一条，native 不用改（但它的落地地址要进 WindowSite.cpp 的 siteHome）。
  */
 const publishTargets = [
   { title: "发布到微信", type: "WeiXin" },
   { title: "发布到知乎", type: "ZhiHu" },
   { title: "发布到CSDN", type: "CSDN" },
+  { title: "发布到开源中国", type: "OSC" },
 ];
 
 /**
  * 各平台要的正文形态：type → 转换函数（不登记的先原样给）。
  * 微信要整段摊平成它自己的段落结构、着色靠 shiki 内联色；知乎反过来——只标代码块语言，
  * 样式一概不塞（它只认自己的语义结构，见 ZhiHuHtml）；CSDN 与知乎同一套（见 CSDNHtml）。
- * 图片都由站点脚本在对方编辑页里传图床（见 JS/ZhiHu.js、JS/CSDN.js）。
+ * 开源中国是 Markdown 编辑器，所以它不是"另一种 HTML"，而是整篇转 Markdown（见 Markdown）。
+ * 图片都由站点脚本在对方编辑页里传图床（见 JS/ZhiHu.js、JS/CSDN.js、JS/OSC.js）。
  */
-const forSite: Record<string, (html: string) => Promise<string>> = {
+const forSite: Record<string, (html: string) => Promise<string> | string> = {
   WeiXin: forWeiXin,
   ZhiHu: forZhiHu,
   CSDN: forCSDN,
+  OSC: toMarkdown,
 };
 
 /**

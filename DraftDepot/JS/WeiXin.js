@@ -43,15 +43,19 @@ function paste(editor, type, data) {
   editor.dispatchEvent(ev);
 }
 
-/** 标题：先清空再塞字。insertText 比 paste 干净，不会带进多余空行；被拦时退回 paste */
+/**
+ * 标题：全选后 paste 一段纯文本，一次替换掉原有内容。
+ * 不用 document.execCommand("insertText")：它已废弃，而且这里也没有更标准的替代品——
+ * 标题输入框是 ProseMirror 的，只能由它自己的编辑器去改内容（它不认 beforeinput 那种通用事件），
+ * 而 paste 是它明明白白接的一条路（见 paste 的说明）。
+ * "替换"靠选区实现：全选后**不** collapseToEnd，粘贴时它见选区没折叠就先删后插，正好是整段替换；
+ * 不先 deleteFromDocument：整块删要让它先消化一次"空文档"的 DOM 变更，随后的插入容易落错地方
+ */
 function setTitle(editor, text) {
   editor.focus();
   const sel = window.getSelection();
   sel.selectAllChildren(editor);
-  sel.deleteFromDocument();
-  if (!document.execCommand("insertText", false, text)) {
-    paste(editor, "text/plain", text);
-  }
+  paste(editor, "text/plain", text);
 }
 
 /** 老编辑器的正文：整段 HTML 一把 paste 进去（新编辑器走下面的 JSAPI） */

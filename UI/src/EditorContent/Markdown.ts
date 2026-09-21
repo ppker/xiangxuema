@@ -9,8 +9,8 @@ import { isCodeLang } from "../CodeHighlight";
  *      直接抄进围栏就行，比从 class 里猜还准；
  *   2. 图片 → ![alt](src)，**src 原样保留** https://app.localhost/images/<文件名>：
  *      那是本程序 WebView2 的虚拟映射，对方的服务器取不到；站点脚本（JS/OSC.js）在写作页里
- *      向 native 要一次图片目录句柄，按文件名取出文件传它的图床后再换掉地址（与知乎/CSDN 同一套）；
- *      博客园那条还没接（JS/CnBlogs.js 现在不传图），所以那边的图暂时是死链；
+ *      向 native 要一次图片目录句柄，按文件名取出文件传它的图床后再换掉地址（与知乎/CSDN 同一套；
+ *      博客园那条在 JS/CnBlogs.js，是同一套的 Markdown 版）；
  *   3. 装饰性样式（文字色 / 背景色 / 字体 / 字号 / 行高 / 对齐）**一律丢掉**：Markdown 没这套语法，
  *      留着只能写成内联 HTML，而那边多半也不会认；
  *   4. 下划线与上/下标 → 保留成内联 HTML（<u> / <sup> / <sub>）：这几个在中文技术文里真会用到，

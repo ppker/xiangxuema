@@ -26,8 +26,8 @@ const publishTargets = [
  * 微信要整段摊平成它自己的段落结构、着色靠 shiki 内联色；知乎反过来——只标代码块语言，
  * 样式一概不塞（它只认自己的语义结构，见 ZhiHuHtml）；CSDN 与知乎同一套（见 CSDNHtml）。
  * 开源中国与博客园都是 Markdown 编辑器，所以它们不是"另一种 HTML"，而是整篇转 Markdown（见 Markdown）。
- * 图片都由站点脚本在对方编辑页里传图床（见 JS/WeiXin.js、JS/ZhiHu.js、JS/CSDN.js、JS/OSC.js；
- * 博客园那条暂时还没接，图是死链）。
+ * 图片都由站点脚本在对方编辑页里传图床（见 JS/WeiXin.js、JS/ZhiHu.js、JS/CSDN.js、JS/OSC.js、
+ * JS/CnBlogs.js）。
  */
 const forSite: Record<string, (html: string) => Promise<string> | string> = {
   WeiXin: forWeiXin,

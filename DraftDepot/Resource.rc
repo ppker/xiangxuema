@@ -9,6 +9,8 @@ CSDN.js RCDATA "JS/CSDN.js"
 CnBlogs.js RCDATA "JS/CnBlogs.js"
 OSC.js RCDATA "JS/OSC.js"
 JueJin.js RCDATA "JS/JueJin.js"
+InfoQ.js RCDATA "JS/InfoQ.js"
+51CTO.js RCDATA "JS/51CTO.js"
 100 ICON "logo.ico"
 
 VS_VERSION_INFO VERSIONINFO

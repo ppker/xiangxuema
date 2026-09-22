@@ -20,6 +20,8 @@ const publishTargets = [
   { title: "发布到博客园", type: "CnBlogs" },
   { title: "发布到开源中国", type: "OSC" },
   { title: "发布到掘金", type: "JueJin" },
+  { title: "发布到InfoQ", type: "InfoQ" },
+  { title: "发布到51CTO", type: "51CTO" },
 ];
 
 /**
@@ -27,9 +29,10 @@ const publishTargets = [
  * 微信要整段摊平成它自己的段落结构、着色靠 shiki 内联色；知乎反过来——只标代码块语言，
  * 样式一概不塞（它只认自己的语义结构，见 ZhiHuHtml）；CSDN 与知乎同一套（见 CSDNHtml）。
  * 开源中国与博客园、掘金都是 Markdown 编辑器，所以它们不是"另一种 HTML"，而是整篇转 Markdown
- * （见 Markdown）。
+ * （见 Markdown）；InfoQ 也是给 Markdown——但它是富文本编辑器，由站点脚本把整篇 Markdown 做成
+ * .md 文件交给它自己的"导入 Markdown"，这样代码块的语言标识才不会丢（见 JS/InfoQ.js）。
  * 图片都由站点脚本在对方编辑页里传图床（见 JS/WeiXin.js、JS/ZhiHu.js、JS/CSDN.js、JS/OSC.js、
- * JS/CnBlogs.js、JS/JueJin.js）。
+ * JS/CnBlogs.js、JS/JueJin.js、JS/InfoQ.js、JS/51CTO.js）。
  */
 const forSite: Record<string, (html: string) => Promise<string> | string> = {
   WeiXin: forWeiXin,
@@ -38,6 +41,9 @@ const forSite: Record<string, (html: string) => Promise<string> | string> = {
   OSC: toMarkdown,
   CnBlogs: toMarkdown,
   JueJin: toMarkdown,
+  InfoQ: toMarkdown,
+  // 键要加引号：以数字开头的标识符不合法（站点 type 本身仍是字符串 "51CTO"）
+  "51CTO": toMarkdown,
 };
 
 /**

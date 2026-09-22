@@ -22,6 +22,12 @@ namespace
 		{ L"OSC",    L"https://my.oschina.net/u/1432189/blog/ai-write" },
 	// 掘金：直接给新建草稿的页面，没登录会被它送到登录页，登录成功后又自动回来（与知乎同一套）
 	{ L"JueJin", L"https://juejin.cn/editor/drafts/new?v=2" },
+	// InfoQ：给草稿箱。它没有固定的"新建文章"地址（编辑页是 /draft/<id>，id 要建草稿时才给），
+	// 所以由注入脚本在草稿箱上调建草稿接口拿到 id 再跳过去（见 JS/InfoQ.js）
+	{ L"InfoQ",  L"https://xie.infoq.cn/draftbox" },
+	// 51CTO：直接给发布文章的页面（Markdown 编辑器），没登录会被它送到登录页，
+	// 登录成功后又自动回来（与知乎同一套）
+	{ L"51CTO",  L"https://blog.51cto.com/blogger/publish" },
 	};
 
 	/// 与 JS 的 Date.now() 同口径：Unix 纪元起的毫秒数，URL 里的 timestamp 要 13 位

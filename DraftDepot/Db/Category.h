@@ -23,11 +23,14 @@ public:
 	static sqlite3_int64 add(const std::wstring& name, sqlite3_int64 parentId);
 	/// 改名；成功返回 true（id 不存在或名字为空返回 false）
 	static bool rename(sqlite3_int64 id, const std::wstring& name);
-	/// 删除分类，连同其全部子分类。
-	/// 注意：连接上没开 PRAGMA foreign_keys，建表时写的 ON DELETE CASCADE 不会触发，
-	/// 所以子树是在 SQL 里用递归 CTE 显式删的；分类下的文章不删，只把 category_id 置空。
-	/// 成功（且确实删到了行）返回 true
-	static bool remove(sqlite3_int64 id);
+	/// 删除分类，但只删"空分类"：下面还挂着子分类、或挂文章的，一律不删，
+	/// 并通过 reason 带一句给人看的原因（由 UI 弹出来），空串表示没挡住。
+	/// 两种挡法各有各的讲究：
+	///   - 有子分类：删一个会带走整棵子树，让用户自己先把子树拆干净；
+	///   - 子树下挂着文章：删完它们会散成未分类，等于悄悄打散了用户已有的归档，先让他自己挪走。
+	/// 确认是空的之后只删它自己一行（子分类既已确认没有，ON DELETE CASCADE 也就没有活干）。
+	/// 成功（且确实删到了行）返回 true；id 不存在时返回 false 并给出原因
+	static bool remove(sqlite3_int64 id, std::wstring& reason);
 	/// 写入分类测试数据（仅当分类表为空时）
 	static void seed();
 };

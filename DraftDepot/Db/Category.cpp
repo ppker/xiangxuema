@@ -1,5 +1,21 @@
 #include "Category.h"
 
+namespace
+{
+    /// 跑一条带一个 id 参数的 COUNT(*) 语句：查出来是计数，查不出来（prepare/step 失败）返回 -1。
+    /// 不把失败当成 0：0 会让调用方把"没查清"当成"没有"，从而放行一次不可撤销的删除
+    int countById(sqlite3* conn, const char* sql, sqlite3_int64 id)
+    {
+        sqlite3_stmt* stmt = nullptr;
+        if (sqlite3_prepare_v2(conn, sql, -1, &stmt, nullptr) != SQLITE_OK) return -1;
+        sqlite3_bind_int64(stmt, 1, id);
+        int count = -1;
+        if (sqlite3_step(stmt) == SQLITE_ROW) count = sqlite3_column_int(stmt, 0);
+        sqlite3_finalize(stmt);
+        return count;
+    }
+}
+
 JsonArray Category::load()
 {
     JsonArray arr;
@@ -73,38 +89,50 @@ bool Category::rename(sqlite3_int64 id, const std::wstring& name)
     return ok;
 }
 
-bool Category::remove(sqlite3_int64 id)
+bool Category::remove(sqlite3_int64 id, std::wstring& reason)
 {
     sqlite3* conn = Db::get();
     if (!conn || id < 0) return false;
 
-    // 要删的是整棵子树。子孙本来可以靠 parent_id 上的 ON DELETE CASCADE 顺着删掉
-    // （连接在 Db::open 里开了外键），这里仍显式用递归 CTE 取出来：
-    // 一是删完后能用 sqlite3_changes 判断这个 id 到底存不存在，
-    // 二是"先解绑文章、再删树"这两步的顺序写死在同一个事务里，不去依赖级联的执行时机
-    const std::string subtree =
-        "(WITH RECURSIVE sub(id) AS ("
-        "  SELECT id FROM category WHERE id = " + std::to_string(id) +
-        "  UNION ALL"
-        "  SELECT c.id FROM category c JOIN sub s ON c.parent_id = s.id"
-        ") SELECT id FROM sub)";
+    // 只删"空分类"：下面还挂着子分类或文章的，一律挡回来，原因写进 reason 由 UI 弹给用户。
+    // 宁可多挡一道——删分类不可撤销，而"文章散成未分类"这种后果是用户看不见的
 
-    // 文章不跟着删：按 schema 里 ON DELETE SET NULL 的意图，只解除关联。
-    // 两条语句包在一个事务里，避免"文章解绑了但分类没删掉"这种半截状态。
-    // id 是本地整数，拼进 SQL 没有注入问题，这样能一次 sqlite3_exec 跑完。
-    const std::string sql =
-        "BEGIN;"
-        "UPDATE article SET category_id = NULL WHERE category_id IN " + subtree + ";"
-        "DELETE FROM category WHERE id IN " + subtree + ";"
-        "COMMIT;";
-
-    if (sqlite3_exec(conn, sql.c_str(), nullptr, nullptr, nullptr) != SQLITE_OK)
+    // 1. 有子分类：删它会把整棵子树一起带走，让用户自己先把子树拆干净
+    static const char* childSql = "SELECT COUNT(*) FROM category WHERE parent_id = ?1;";
+    int children = countById(conn, childSql, id);
+    if (children != 0) // >0 真有子分类；<0 没能查清，也按"不肯删"处理
     {
-        sqlite3_exec(conn, "ROLLBACK;", nullptr, nullptr, nullptr); // 别留着半截事务
+        reason = children > 0 ? std::wstring{ L"该分类下还有子分类，先删掉子分类再来" }
+            : std::wstring{ L"没能确认这个分类下的子分类，先不删" };
         return false;
     }
-    // 最后一条语句是 DELETE：影响 0 行说明这个 id 根本不存在
-    return sqlite3_changes(conn) > 0;
+
+    // 2. 整棵子树（含自己）下挂着文章：删完它们会变成未分类，等于悄悄打散了已有的归档。
+    //    照"整棵子树"写而不是只查自己：哪天放开"带（空）子分类的树可以删"，这条检查不用改
+    static const char* articleSql =
+        "SELECT COUNT(*) FROM article WHERE category_id IN ("
+        "  WITH RECURSIVE sub(id) AS (SELECT id FROM category WHERE id = ?1"
+        "    UNION ALL SELECT c.id FROM category c JOIN sub s ON c.parent_id = s.id)"
+        "  SELECT id FROM sub);";
+    int articles = countById(conn, articleSql, id);
+    if (articles != 0)
+    {
+        reason = articles > 0
+            ? std::wstring{ L"该分类下还有 " } + std::to_wstring(articles) + L" 篇文章，先移走再删"
+            : std::wstring{ L"没能确认这个分类下的文章，先不删" };
+        return false;
+    }
+
+    // 走到这里：既没有子分类也没有文章，删它自己一行就够了
+    static const char* delSql = "DELETE FROM category WHERE id = ?1;";
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(conn, delSql, -1, &stmt, nullptr) != SQLITE_OK) return false;
+    sqlite3_bind_int64(stmt, 1, id);
+    // sqlite3_changes 用来区分"删到了"和"id 根本不存在"（与 rename 同一套写法）
+    bool ok = (sqlite3_step(stmt) == SQLITE_DONE) && (sqlite3_changes(conn) > 0);
+    sqlite3_finalize(stmt);
+    if (!ok && reason.empty()) reason = L"这个分类已经不存在了";
+    return ok;
 }
 
 void Category::seed()

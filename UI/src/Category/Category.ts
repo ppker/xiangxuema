@@ -32,7 +32,7 @@ type EditorMode = "top" | "sibling" | "child" | "rename";
  * 启动时通过 Msg 请求原生侧从数据库读取分类，以原生 DOM 递归渲染 ul/li 树形分类。
  * 点击分工：点名称（含它的整片背景）选中/取消选中；点名称左侧的 +/− 图标展开/折叠；
  * 右键弹出 Menu 并顺手选中该分类；Menu 里的新增/改名走 Editor，提交后写库并重画分类树；
- * 删除分类连子树一起删，删前先确认。
+ * 删除只准删空分类（没有子分类、下面也没挂文章），挡住时把原生给的原因弹给用户。
  */
 class Category extends CtrlBase {
   /** 当前选中的分类行（.categoryLabel）；null 表示没有选中 */
@@ -155,24 +155,24 @@ class Category extends CtrlBase {
   }
 
   /**
-   * 删除分类，连同它的子分类一起删（原生侧用递归 CTE 删整棵子树）。
-   * 分类下的文章不删，只解除关联变成未分类，所以文章列表里它们还在。
-   * 破坏性操作，删之前先确认一下。
+   * 删除分类。只删空分类：下面还挂着子分类或文章的，原生侧会挡回来并给一句原因，
+   * 这里把原因弹给用户；确认框也因此不再提"连同子分类一起删"。
    */
   private async removeCategory(node: HTMLElement | null): Promise<void> {
     const id = Category.nodeIdOf(node);
     if (id == null) return;
     const name = Category.nameOf(node) || "该分类";
     // 用宿主浏览器的 confirm 弹窗；以后要做成应用内弹窗的话换掉这一句即可
-    const confirmed = window.confirm(`删除分类「${name}」？\n它的子分类会一起删除，分类下的文章会变成未分类。`);
+    const confirmed = window.confirm(`删除分类「${name}」？`);
     if (!confirmed) return;
 
     try {
-      await Msg.invoke("removeCategory", { id });
+      const data = (await Msg.invoke("removeCategory", { id })) as { ok: boolean; reason?: string };
+      // 挡回来的（有子分类 / 有文章）与 id 不存在都走这里：把原生给的原因原样弹出来
+      if (!data?.ok) window.alert(data?.reason || "删除失败");
     } catch {
-      // 删除失败也往下走：统一刷新，让列表反映数据库里的真实状态
+      // 原生侧没回应（消息丢失）：没有原因可弹，直接刷新反映真实状态
     }
-    // 重画后这个分类已经不存在，选中会按 id 找不到而自动落空，文章列表随之恢复全部
     await this.loadAndRender();
   }
 

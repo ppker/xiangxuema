@@ -153,11 +153,14 @@ HRESULT Page::onMsgReceived(ICoreWebView2* webview, ICoreWebView2WebMessageRecei
         result.SetNamedValue(L"result", payload);
     }
     else if (method == L"removeCategory") {
-        // args: { id }；连子分类一起删，返回 { ok }
+        // args: { id }；只删空分类：有子分类、或子树下挂着文章的会被挡回来，
+        // 原因在 reason 里，前端直接弹给用户（见 Category::remove）
         JsonObject args = Util::msgArgs(param);
+        std::wstring reason;
+        bool ok = Category::remove(Util::argNumber(args, L"id"), reason);
         JsonObject payload;
-        payload.SetNamedValue(L"ok", JsonValue::CreateBooleanValue(
-            Category::remove(Util::argNumber(args, L"id"))));
+        payload.SetNamedValue(L"ok", JsonValue::CreateBooleanValue(ok));
+        payload.SetNamedValue(L"reason", JsonValue::CreateStringValue(reason));
         result.SetNamedValue(L"result", payload);
     }
     else if (method == L"openSite") {

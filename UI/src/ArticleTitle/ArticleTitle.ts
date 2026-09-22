@@ -242,12 +242,17 @@ class ArticleTitle extends CtrlBase {
     }
   }
 
-  /** 切换选中态：摘掉旧的、给新的戴上，selectedId 跟着更新 */
+  /**
+   * 切换选中态：摘掉旧的、给新的戴上，selectedId 跟着更新。
+   * 这里是"有一篇被选中"的唯一收口，顺带把遮罩收起——有行可选就说明列表不是空的，
+   * 编辑器该露出来（点列表行、切分类后选中第一行、新建，走的都是这里）
+   */
   private applySelection(item: HTMLElement): void {
     this.selectedItem?.classList.remove("selected");
     this.selectedItem = item;
     this.selectedId = Number(item.dataset.id);
     item.classList.add("selected");
+    EmptyMask.setVisible(false);
   }
 
   /** 标题或正文被改动：防抖写回当前选中的这一篇 */
@@ -280,8 +285,6 @@ class ArticleTitle extends CtrlBase {
       this.suppress = false;
       // 新建不经过 loadAndRender，篇数得在这里单独刷一次
       void StatusBar.refreshCounts();
-      // 列表有行了：收起遮罩（从空分类或空库里建第一篇时它正盖着）
-      EmptyMask.setVisible(false);
     } catch {
       // 入库失败：界面停在原来那篇上，用户可以再点一次加号重试
     }

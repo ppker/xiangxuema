@@ -7,7 +7,7 @@
 using namespace winrt::Windows::Data::Json;
 
 /**
- * 文章的数据访问：标题列表的读取（不查正文），外加测试数据写入。
+ * 文章的数据访问：标题列表的读取（不查正文）。
  * 与 Category 平级，直接对外提供服务；数据库连接统一从 Db::get() 取，本类不持有连接。
  */
 class Article
@@ -28,6 +28,4 @@ public:
 	static bool updateArticle(sqlite3_int64 id, const std::wstring& title, const std::wstring& content);
 	/// 删除一篇文章；确实删到了一行才返回 true（id 不存在返回 false）
 	static bool removeArticle(sqlite3_int64 id);
-	/// 写入文章测试数据（仅当文章表为空时）；按分类名字关联，库里没有的分类直接跳过
-	static void seed();
 };

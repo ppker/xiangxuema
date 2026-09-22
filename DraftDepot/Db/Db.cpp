@@ -127,6 +127,27 @@ namespace
             " WHERE img_name LIKE 'images/%';", nullptr, nullptr, nullptr);
     }
 
+    /// 外键约束默认是关闭的：不显式打开，建表时写的 ON DELETE CASCADE / SET NULL 全是摆设。
+    /// 这个开关不是写进库文件的持久属性，每条连接都必须设一次，且要设在事务之外。
+    /// 打开之后两件事由 SQLite 兜住：删分类时它的子孙被 CASCADE 连带删掉；
+    /// 删文章时它在 image 表里的记录被连带删掉，不用调用方自己记着收拾。
+    void enableForeignKeys()
+    {
+        if (sqlite3_exec(conn, "PRAGMA foreign_keys = ON;", nullptr, nullptr, nullptr) != SQLITE_OK)
+            fatal(L"启用外键约束失败\n\n"
+                + std::wstring{ static_cast<const wchar_t*>(sqlite3_errmsg16(conn)) });
+
+        // PRAGMA 执行成功不等于真的开了：编译期去掉外键支持时它是静默无效的，读回来确认一下
+        sqlite3_stmt* stmt = nullptr;
+        bool on = false;
+        if (sqlite3_prepare_v2(conn, "PRAGMA foreign_keys;", -1, &stmt, nullptr) == SQLITE_OK)
+        {
+            if (sqlite3_step(stmt) == SQLITE_ROW) on = sqlite3_column_int(stmt, 0) != 0;
+            sqlite3_finalize(stmt);
+        }
+        if (!on) fatal(L"SQLite 未启用外键支持\n\n这一版 sqlite3 可能是在关闭外键的情况下编译的");
+    }
+
     void open()
     {
         // 数据目录由 Env::initDataPath 负责创建；db.db 不存在时 sqlite3 会自动创建文件
@@ -147,6 +168,9 @@ namespace
 
         createSchema();
         migrateImageTable();
+        // 外键放最后开：让建表和旧库迁列这些一次性动作跑在跟升级前一样的环境里，
+        // 万一旧库还留着不合外键的历史数据也不会卡住迁移。此后的正常读写都在约束之下
+        enableForeignKeys();
     }
 }
 
@@ -154,7 +178,6 @@ void Db::init()
 {
     open();
     Category::seed();
-    Article::seed();
 }
 
 sqlite3* Db::get()

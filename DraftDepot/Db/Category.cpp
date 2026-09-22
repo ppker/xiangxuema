@@ -78,8 +78,10 @@ bool Category::remove(sqlite3_int64 id)
     sqlite3* conn = Db::get();
     if (!conn || id < 0) return false;
 
-    // 要删的是整棵子树。连接上没开 PRAGMA foreign_keys，
-    // 建表时写的 ON DELETE CASCADE 不会生效，所以子孙得自己用递归 CTE 取出来
+    // 要删的是整棵子树。子孙本来可以靠 parent_id 上的 ON DELETE CASCADE 顺着删掉
+    // （连接在 Db::open 里开了外键），这里仍显式用递归 CTE 取出来：
+    // 一是删完后能用 sqlite3_changes 判断这个 id 到底存不存在，
+    // 二是"先解绑文章、再删树"这两步的顺序写死在同一个事务里，不去依赖级联的执行时机
     const std::string subtree =
         "(WITH RECURSIVE sub(id) AS ("
         "  SELECT id FROM category WHERE id = " + std::to_string(id) +
@@ -110,7 +112,7 @@ void Category::seed()
     sqlite3* conn = Db::get();
     if (!conn) return;
 
-    // 仅在分类表为空时写入测试数据，避免重复启动重复种子
+    // 仅在分类表为空时写入初始分类，避免每次启动都重插一遍
     sqlite3_stmt* stmt = nullptr;
     if (sqlite3_prepare_v2(conn, "SELECT COUNT(*) FROM category;", -1, &stmt, nullptr) != SQLITE_OK)
         return;
@@ -136,38 +138,9 @@ void Category::seed()
         return sqlite3_last_insert_rowid(conn);
     };
 
-    // 顶层
-    sqlite3_int64 work = insertOne(L"工作", -1, 0);
-    sqlite3_int64 study = insertOne(L"学习", -1, 1);
-    sqlite3_int64 life = insertOne(L"生活", -1, 2);
-
-    // 工作：一个分支 + 两个叶节点，用来看“一组兄弟的竖线只拉在首尾两条横线之间”
-    sqlite3_int64 workDoc = insertOne(L"项目文档", work, 0);
-    insertOne(L"需求说明", workDoc, 0);
-    insertOne(L"设计稿", workDoc, 1);
-    insertOne(L"会议纪要", work, 1);
-    insertOne(L"周报", work, 2);
-
-    // 学习：五层深的直链（编程→语言→Rust→所有权/生命周期），外加分支和叶节点
-    sqlite3_int64 coding = insertOne(L"编程", study, 0);
-    sqlite3_int64 lang = insertOne(L"语言", coding, 0);
-    sqlite3_int64 rust = insertOne(L"Rust", lang, 0);
-    insertOne(L"所有权", rust, 0);
-    insertOne(L"生命周期", rust, 1);
-    insertOne(L"TypeScript", lang, 1);
-    insertOne(L"工具链", coding, 1);
-    sqlite3_int64 english = insertOne(L"英语", study, 1);
-    insertOne(L"词汇", english, 0);
-    insertOne(L"听力", english, 1);
-    insertOne(L"数学", study, 2);
-
-    // 生活：含一个“独苗”分支（只有一个子节点，竖线长度为零，不应该画出来）
-    insertOne(L"饮食", life, 0);
-    sqlite3_int64 travel = insertOne(L"旅行", life, 1);
-    insertOne(L"国内", travel, 0);
-    sqlite3_int64 abroad = insertOne(L"国外", travel, 1);
-    insertOne(L"日本", abroad, 0);
-    insertOne(L"冰岛", abroad, 1);
-    sqlite3_int64 health = insertOne(L"健康", life, 2);
-    insertOne(L"作息", health, 0);
+    // 顶层两个技术类目，「开发」下再挂两个子节点：既够选，也保住一层层级供界面展开/收起验证
+    insertOne(L"架构", -1, 0);
+    sqlite3_int64 dev = insertOne(L"开发", -1, 1);
+    insertOne(L"C++", dev, 0);
+    insertOne(L"框架", dev, 1);
 }

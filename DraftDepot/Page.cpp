@@ -33,18 +33,16 @@ Page::Page(Window* win, ComPtr<ICoreWebView2>& webview) :win{ win }, webview{ we
 	// 调试：用 vite 开发服务器，改前端不必重新编译 exe
 	webview->Navigate(L"http://localhost:5173");
 #else
-	// 发布：前端产物编进了 exe 资源（见 Resource.rc 引入的 dist.rc），走虚拟域名——
+	// 发布：前端产物编进了 exe 资源（见 Resource.rc 里那块 dist 清单），走虚拟域名——
 	// 请求由 onRequest 从资源里应答，一个 exe 就能独立跑，不依赖本机任何文件
 	webview->Navigate(L"https://app.localhost/index.html");
-    win->show();
-    webview->OpenDevToolsWindow();
 #endif
 }
 
 void Page::emit(const JsonObject& eventData)
 {
     std::wstring eventDataStr{ eventData.Stringify() };
-    //webview->PostWebMessageAsJson(eventDataStr.data());
+    webview->PostWebMessageAsJson(eventDataStr.data());
 }
 
 

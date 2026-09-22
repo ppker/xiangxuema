@@ -29,10 +29,6 @@ public:
 	static WindowSite* create(const std::wstring& type,
 		const std::wstring& articleTitle = {}, const std::wstring& articleHtml = {});
 
-	/** 给 PageSite::onMsgReceived 调用的窗口控制（site 页面 JS 可经 IPC 调用） */
-	void minimize();
-	void maximize();
-	void restore();
 	/// 关掉本窗口：站点脚本（如 CnBlogs.js）碰到"这一步没法往下走"时用。
 	/// 只投一个 WM_CLOSE 就返回——真正的销毁走窗口消息（onDestroy 里摘注册表、析构对象），
 	/// 调用方（PageSite 的消息回调）还站在自己的栈上，直接 DestroyWindow 等于把自己删了

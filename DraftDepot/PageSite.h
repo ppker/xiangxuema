@@ -6,7 +6,7 @@ class WindowSite;
 /**
  * site 窗口的 webview 页面层（与 Page 类平行，不继承）。
  *   - 不劫持本地资源（不注册 WebResourceRequested filter），让 webview 走网络正常加载；
- *   - 注册 WebMessageReceived 处理 site 页面 JS 调 native（minimize / maximize / restore）；
+ *   - 注册 WebMessageReceived 处理站点脚本调 native；
  *   - 注册 WindowCloseRequested 转发 WM_CLOSE 关窗；
  *   - 注册 DocumentTitleChanged / FaviconChanged，把网页标题与 favicon 同步到窗口标题栏与图标。
  * 不做主动脚本注入：站点脚本只填site 页面用到的那部分。

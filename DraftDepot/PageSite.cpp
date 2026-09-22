@@ -49,16 +49,7 @@ HRESULT PageSite::onMsgReceived(ICoreWebView2* webview, ICoreWebView2WebMessageR
 	if (param.HasKey(L"id")) {
 		result.SetNamedValue(L"id", JsonValue::CreateStringValue(param.GetNamedString(L"id")));
 	}
-	if (method == L"minimize") {
-		win->minimize();
-	}
-	else if (method == L"maximize") {
-		win->maximize();
-	}
-	else if (method == L"restore") {
-		win->restore();
-	}
-	else if (method == L"setParam") {
+	if (method == L"setParam") {
 		// args: { key, value }；站点脚本回传站点参数（微信的 token），由 WindowSite 落库
 		win->setParam(param, result);
 	}

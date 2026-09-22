@@ -113,21 +113,6 @@ void WindowSite::createWin()
 	wvEnv->CreateCoreWebView2Controller(hwnd, ctrlReadyCB.Get());
 }
 
-void WindowSite::minimize()
-{
-	ShowWindow(hwnd, SW_MINIMIZE);
-}
-
-void WindowSite::maximize()
-{
-	ShowWindow(hwnd, SW_MAXIMIZE);
-}
-
-void WindowSite::restore()
-{
-	ShowWindow(hwnd, SW_RESTORE);
-}
-
 void WindowSite::close()
 {
 	// 见 WindowSite.h：投完就回来，销毁等窗口消息自己走完

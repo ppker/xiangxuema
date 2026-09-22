@@ -11,6 +11,13 @@ OSC.js RCDATA "JS/OSC.js"
 JueJin.js RCDATA "JS/JueJin.js"
 InfoQ.js RCDATA "JS/InfoQ.js"
 51CTO.js RCDATA "JS/51CTO.js"
+
+; 前端构建产物（UI/dist）：由 UI/scripts/gen-dist-rc.mjs 自动生成，文件名带 hash，别手改。
+; 只有 Release 才嵌：Debug 走 vite 开发服务器，把这些再编进 exe 只是白白拖慢链接
+#ifndef _DEBUG
+#include "dist.rc"
+#endif
+
 100 ICON "logo.ico"
 
 VS_VERSION_INFO VERSIONINFO

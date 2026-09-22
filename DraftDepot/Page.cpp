@@ -29,14 +29,22 @@ Page::Page(Window* win, ComPtr<ICoreWebView2>& webview) :win{ win }, webview{ we
     auto closeWindowCB = Callback<ICoreWebView2WindowCloseRequestedEventHandler>(this, &Page::onCloseWindow);
     webview->add_WindowCloseRequested(closeWindowCB.Get(), nullptr);
 
-	//webview->Navigate(L"https://app.localhost/index.html");
+#ifdef _DEBUG
+	// 调试：用 vite 开发服务器，改前端不必重新编译 exe
 	webview->Navigate(L"http://localhost:5173");
+#else
+	// 发布：前端产物编进了 exe 资源（见 Resource.rc 引入的 dist.rc），走虚拟域名——
+	// 请求由 onRequest 从资源里应答，一个 exe 就能独立跑，不依赖本机任何文件
+	webview->Navigate(L"https://app.localhost/index.html");
+    win->show();
+    webview->OpenDevToolsWindow();
+#endif
 }
 
 void Page::emit(const JsonObject& eventData)
 {
     std::wstring eventDataStr{ eventData.Stringify() };
-    webview->PostWebMessageAsJson(eventDataStr.data());
+    //webview->PostWebMessageAsJson(eventDataStr.data());
 }
 
 
@@ -208,6 +216,8 @@ HRESULT Page::onRequest(ICoreWebView2* webview, ICoreWebView2WebResourceRequeste
     size_t queryPos = url.find(L'?');
     size_t end = (queryPos != std::wstring::npos) ? queryPos : url.length();
     std::wstring resName = url.substr(22, end - 22); //22是“https://app.localhost/”的长度
+    // 光有域名（https://app.localhost/）或以 / 结尾的，都当要首页
+    if (resName.empty() || resName.back() == L'/') resName += L"index.html";
     HRSRC hRes = FindResource(NULL, resName.data(), RT_RCDATA);
     if (!hRes) {
         // 内嵌资源未命中时，回退到数据目录：读取 dataPath/<resName> 同名文件

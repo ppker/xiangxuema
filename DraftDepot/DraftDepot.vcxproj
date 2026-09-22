@@ -166,6 +166,8 @@
     <ClCompile Include="WindowSite.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="JS\Msg.js" />
+    <None Include="JS\OSC.js" />
     <None Include="JS\WeiXin.js" />
     <None Include="JS\ZhiHu.js" />
     <None Include="JS\CSDN.js" />

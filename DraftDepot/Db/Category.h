@@ -31,6 +31,8 @@ public:
 	/// 确认是空的之后只删它自己一行（子分类既已确认没有，ON DELETE CASCADE 也就没有活干）。
 	/// 成功（且确实删到了行）返回 true；id 不存在时返回 false 并给出原因
 	static bool remove(sqlite3_int64 id, std::wstring& reason);
+	/// 分类总数（全部层级）：给状态栏显示用；查不出来返回 0
+	static sqlite3_int64 count();
 	/// 写入分类测试数据（仅当分类表为空时）
 	static void seed();
 };

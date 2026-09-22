@@ -6,6 +6,7 @@ import Header from "./Header/Header";
 import Menu from "./Menu/Menu";
 import EditorTitle from "../EditorTitle/EditorTitle";
 import EditorContent from "../EditorContent/EditorContent";
+import StatusBar from "../StatusBar/StatusBar";
 
 /** 原生侧返回的文章行 */
 interface ArticleRow {
@@ -37,7 +38,8 @@ const UNTITLED = "【未命名】";
  * 换句话说没有"新增态"：新建只有一条路，就是 Header 上的加号按钮广播的 addArticle
  * （清空标题输入框与正文 → 入库一篇【未命名】 → 插到列表最前面并选中它）。
  * 删除只有一条路：右键列表行 → 菜单里的"删除此文章"（删掉的就是右键命中的那篇）。
- * 编辑过程中的改标题/改正文：立刻排队写回当前选中这篇（标题正文一起更新），排队期间最多 2 秒写一次。
+ * 编辑过程中的改标题/改正文：立刻排队写回当前选中这篇（标题正文一起更新），排队期间最多 2 秒写一次；
+ * 另外两个强制落库的点：标题输入框或正文失焦时立刻写一次（不等这 2 秒），关窗前再兜一次（见 flush）。
  */
 class ArticleTitle extends CtrlBase {
   /** 当前过滤的分类 id；null 表示没选中分类，加载全部 */
@@ -63,6 +65,9 @@ class ArticleTitle extends CtrlBase {
 
   /** 防抖入库的定时器；0 = 没排着队 */
   private saveTimer = 0;
+
+  /** 正在飞的那一轮写库（saveNow 的 Promise）；关窗前要等它落地，见 flush() */
+  private savingNow: Promise<void> | null = null;
 
   /** 有待入库的改动（标题或正文改了还没写进去） */
   private dirty = false;
@@ -95,6 +100,8 @@ class ArticleTitle extends CtrlBase {
     // 标题/正文的改动统一在这里收口写回当前选中的这篇
     Msg.on("articleTitleEdited", this.onEdited);
     Msg.on("editorContentChanged", this.onEdited);
+    // 失焦 = 这一段编辑结束了：立刻落库，别让改动排在那 2 秒里等
+    Msg.on("editorBlur", () => this.flushSave());
     // Header 上的加号：清空输入并新建一篇【未命名】
     Msg.on("addArticle", () => void this.createArticle());
   }
@@ -123,6 +130,8 @@ class ArticleTitle extends CtrlBase {
     this.renderList(rows);
     // 列表有了 → 选中第一行（同时把它的标题正文载进编辑器）；一篇都没有 → 当场建一篇
     await this.ensureSelection();
+    // 篇数可能刚变过（删掉一篇、或启动时空库补的那篇）：让状态栏重新数一次
+    void StatusBar.refreshCounts();
   }
 
   /** 保证"列表里有文章、且有一篇被选中"这两条不变量 */
@@ -236,6 +245,8 @@ class ArticleTitle extends CtrlBase {
       EditorTitle.input.value = "";
       EditorContent.setContent("");
       this.suppress = false;
+      // 新建不经过 loadAndRender，篇数得在这里单独刷一次
+      void StatusBar.refreshCounts();
     } catch {
       // 入库失败：界面停在原来那篇上，用户可以再点一次加号重试
     }
@@ -289,7 +300,7 @@ class ArticleTitle extends CtrlBase {
     if (this.saveTimer || this.saving) return;
     this.saveTimer = window.setTimeout(() => {
       this.saveTimer = 0;
-      void this.saveNow();
+      void (this.savingNow = this.saveNow());
     }, ArticleTitle.SAVE_INTERVAL);
   }
 
@@ -298,7 +309,24 @@ class ArticleTitle extends CtrlBase {
     if (!this.dirty) return; // 没有待写的改动
     clearTimeout(this.saveTimer);
     this.saveTimer = 0;
-    void this.saveNow();
+    void (this.savingNow = this.saveNow());
+  }
+
+  /**
+   * 把还没落的改动立刻写完，并等它真正落地（关窗前调用）。
+   * 与 flushSave 的区别是"等"：flushSave 发起了就不管，而窗口一关 WebView 就没了，
+   * 飞在半路的 IPC 会被掐断，那几秒的编辑也就跟着没了——所以这里返回写库的 Promise，
+   * 由调用方 await 完再关窗。
+   */
+  async flush(): Promise<void> {
+    clearTimeout(this.saveTimer);
+    this.saveTimer = 0;
+    // 上一轮还在飞：先等它落地（它落地时若期间又有改动，dirty 会重新亮起来）
+    if (this.savingNow) await this.savingNow;
+    if (this.dirty) await (this.savingNow = this.saveNow());
+    // 最后一轮的 finally 可能又排了一轮：进程要退了，不再排
+    clearTimeout(this.saveTimer);
+    this.saveTimer = 0;
   }
 
   private async saveNow(): Promise<void> {
@@ -325,6 +353,7 @@ class ArticleTitle extends CtrlBase {
       timeEl.title = data.updatedAt;
     } finally {
       this.saving = false;
+      this.savingNow = null;
       // 写库期间又改了：再排一轮，下一次同样等 2 秒
       if (this.dirty) this.scheduleSave();
     }

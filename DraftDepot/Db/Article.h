@@ -28,4 +28,6 @@ public:
 	static bool updateArticle(sqlite3_int64 id, const std::wstring& title, const std::wstring& content);
 	/// 删除一篇文章；确实删到了一行才返回 true（id 不存在返回 false）
 	static bool removeArticle(sqlite3_int64 id);
+	/// 文章总数（不过滤分类）：给状态栏显示用；查不出来返回 0
+	static sqlite3_int64 count();
 };

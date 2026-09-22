@@ -2,6 +2,7 @@ import "./TitleBar.scss";
 import html from "./TitleBar.html?raw";
 import CtrlBase from "../CtrlBase";
 import Msg from "../Msg";
+import ArticleTitle from "../ArticleTitle/ArticleTitle";
 
 class TitleBar extends CtrlBase {
   constructor() {
@@ -13,7 +14,7 @@ class TitleBar extends CtrlBase {
     this.dom.querySelector<HTMLElement>("#minimizeBtn").addEventListener("mousedown", this.onMinimize);
     this.dom.querySelector<HTMLElement>("#restoreBtn").addEventListener("mousedown", () => Msg.invoke("restore"));
     this.dom.querySelector<HTMLElement>("#maximizeBtn").addEventListener("mousedown", () => Msg.invoke("maximize"));
-    this.dom.querySelector<HTMLElement>("#closeBtn").addEventListener("mousedown", () => window.close());
+    this.dom.querySelector<HTMLElement>("#closeBtn").addEventListener("mousedown", this.onClose);
     Msg.on("maximize", () => this.syncMaximizeBtn(false));
     Msg.on("restore", () => this.syncMaximizeBtn(true));
   }
@@ -27,6 +28,17 @@ class TitleBar extends CtrlBase {
     } finally {
       window.addEventListener("mousemove", () => minimizeBtn.classList.remove("suppressHover"), { once: true });
     }
+  };
+
+  /**
+   * 关窗：先把还没落库的改动写完再 close。
+   * window.close() 一路走到 native 的 WM_CLOSE → 窗口销毁，WebView 随之中断，
+   * 飞在半路的写库 IPC 会被掐掉——所以这里 await 完 flush 再关，
+   * 否则最后 2 秒内的编辑会随窗口一起消失。
+   */
+  private readonly onClose = async () => {
+    await ArticleTitle.flush();
+    window.close();
   };
 
   private syncMaximizeBtn(restored: boolean): void {

@@ -66,6 +66,8 @@ class EditorTitle extends CtrlBase {
   override ready(): void {
     // 标题一被改动就广播出去：由 ArticleTitle 写回当前选中的那篇（最多 2 秒一次）
     this.input.addEventListener("input", () => Msg.emit("articleTitleEdited"));
+    // 输入框失焦：同上，但要求立刻写（理由见 EditorContent 的 focusout）
+    this.input.addEventListener("blur", () => Msg.emit("editorBlur"));
     // 用 title 属性精确锁定按钮，避免依赖 HTML 里 8 个 .publishBtn 的顺序
     for (const target of publishTargets) {
       const btn = this.dom.querySelector<HTMLElement>(`.publishBtn[title="${target.title}"]`);

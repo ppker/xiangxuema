@@ -44,6 +44,9 @@ class EditorContent extends CtrlBase {
       const found = findCodeBlock(e.target as Node);
       if (found) Msg.emit("editCodeBlock", found);
     });
+    // 失焦（点到分类树、工具栏、关窗按钮）就立刻落库：只靠那 2 秒防抖的话，
+    // 失焦后紧接着关掉程序，最后这点改动就随窗口一起没了
+    this.dom.addEventListener("focusout", () => Msg.emit("editorBlur"));
   }
 
   /** 当前正文的 HTML：入库就是取它。代码块在这里剥掉着色，只留纯文本与语言 */

@@ -135,6 +135,21 @@ bool Category::remove(sqlite3_int64 id, std::wstring& reason)
     return ok;
 }
 
+sqlite3_int64 Category::count()
+{
+    sqlite3* conn = Db::get();
+    if (!conn) return 0;
+
+    // 状态栏要的总数：不分层级、不看选中，库里有多少个就是多少个
+    static const char* sql = "SELECT COUNT(*) FROM category;";
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(conn, sql, -1, &stmt, nullptr) != SQLITE_OK) return 0;
+    sqlite3_int64 n = 0;
+    if (sqlite3_step(stmt) == SQLITE_ROW) n = sqlite3_column_int64(stmt, 0);
+    sqlite3_finalize(stmt);
+    return n;
+}
+
 void Category::seed()
 {
     sqlite3* conn = Db::get();
@@ -170,5 +185,4 @@ void Category::seed()
     insertOne(L"架构", -1, 0);
     sqlite3_int64 dev = insertOne(L"开发", -1, 1);
     insertOne(L"C++", dev, 0);
-    insertOne(L"框架", dev, 1);
 }

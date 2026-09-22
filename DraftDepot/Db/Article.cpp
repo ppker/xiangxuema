@@ -153,3 +153,18 @@ bool Article::removeArticle(sqlite3_int64 id)
     return ok;
 }
 
+sqlite3_int64 Article::count()
+{
+    sqlite3* conn = Db::get();
+    if (!conn) return 0;
+
+    // 状态栏要的总数：不论分类、不论有没有正文，库里有多少篇就是多少
+    static const char* sql = "SELECT COUNT(*) FROM article;";
+    sqlite3_stmt* stmt = nullptr;
+    if (sqlite3_prepare_v2(conn, sql, -1, &stmt, nullptr) != SQLITE_OK) return 0;
+    sqlite3_int64 n = 0;
+    if (sqlite3_step(stmt) == SQLITE_ROW) n = sqlite3_column_int64(stmt, 0);
+    sqlite3_finalize(stmt);
+    return n;
+}
+

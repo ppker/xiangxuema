@@ -6,6 +6,7 @@ import Header from "./Header/Header";
 import Menu from "./Menu/Menu";
 import Editor from "./Editor/Editor";
 import ArticleTitle from "../ArticleTitle/ArticleTitle";
+import StatusBar from "../StatusBar/StatusBar";
 
 /** 分类节点 */
 interface CategoryNode {
@@ -220,6 +221,8 @@ class Category extends CtrlBase {
       // 读取失败时渲染空树，避免阻塞其余面板
       this.renderTree([], selectId);
     }
+    // 分类数可能刚变过（新增/删除）：让状态栏重新数一次
+    void StatusBar.refreshCounts();
   }
 
   /** 把原生侧返回的扁平分类行组织成多级树（保持传入顺序，父在前） */

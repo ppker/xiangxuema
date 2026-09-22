@@ -163,6 +163,14 @@ HRESULT Page::onMsgReceived(ICoreWebView2* webview, ICoreWebView2WebMessageRecei
         payload.SetNamedValue(L"reason", JsonValue::CreateStringValue(reason));
         result.SetNamedValue(L"result", payload);
     }
+    else if (method == L"getCounts") {
+        // 无参数：状态栏左侧要的库级统计。与当前选中哪个分类无关，所以按整张表数，
+        // 不复用 Article::loadTitles（那个是按分类过滤的，数出来的只是当前视图里的篇数）
+        JsonObject payload;
+        payload.SetNamedValue(L"categories", JsonValue::CreateNumberValue(static_cast<double>(Category::count())));
+        payload.SetNamedValue(L"articles", JsonValue::CreateNumberValue(static_cast<double>(Article::count())));
+        result.SetNamedValue(L"result", payload);
+    }
     else if (method == L"openSite") {
         // args: { type, title, html }；前端点"发布到 xxx"按钮时触发，新开一个 site 窗口。
         // type 决定开哪个站点（公众号 "WeiXin"、CSDN "CSDN" ...）：打开哪个地址由 WindowSite 按 type 自己算

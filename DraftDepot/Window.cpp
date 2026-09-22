@@ -88,6 +88,7 @@ void Window::maximize()
 {
     ShowWindow(hwnd, SW_MAXIMIZE);
 }
+
 void Window::restore()
 {
     // 只在真正从最大化下来时复位尺寸：从最小化还原（任务栏点回来）应该保持原样

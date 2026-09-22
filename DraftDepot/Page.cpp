@@ -72,6 +72,7 @@ HRESULT Page::onMsgReceived(ICoreWebView2* webview, ICoreWebView2WebMessageRecei
     else if (method == L"restore") {
         win->restore();
     }
+
     else if (method == L"getImageDir") {
         // 把图片目录句柄随回包发给 JS（自带回包逻辑，不走下面的统一 PostWebMessageAsJson）
         handleGetImageDir(result);

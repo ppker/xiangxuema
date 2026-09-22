@@ -54,8 +54,12 @@ class StatusBar extends CtrlBase {
     }
   }
 
-  /** 右侧字数；编辑器还没建好（启动瞬间、还没打开任何文章）时留空 */
-  private updateWords(): void {
+  /**
+   * 右侧字数；编辑器还没建好（启动瞬间、还没打开任何文章）时留空。
+   * public：正文被程序化改动（切到空分类、删掉最后一篇后清空编辑器）时不会走用户编辑那条事件链，
+   * 由 ArticleTitle 直接调一次。
+   */
+  updateWords(): void {
     if (!this.words) return;
     this.words.textContent = EditorContent.editor ? `当前文章共 ${countChars(EditorContent.content)} 个字` : "";
   }

@@ -7,6 +7,7 @@ import Menu from "./Menu/Menu";
 import EditorTitle from "../EditorTitle/EditorTitle";
 import EditorContent from "../EditorContent/EditorContent";
 import StatusBar from "../StatusBar/StatusBar";
+import EmptyMask from "../ArticleEditor/EmptyMask/EmptyMask";
 
 /** 原生侧返回的文章行 */
 interface ArticleRow {
@@ -31,13 +32,16 @@ const UNTITLED = "【未命名】";
  * 选中分类后由 Category 调 setCategoryFilter()，只加载该分类（含子分类）的文章，
  * 没选中任何分类则加载全部。这一版不做分页。
  *
- * 顺带管着"当前编辑的是哪一篇"，这里有两条不变量：
- * - 列表里永远至少有一篇文章：载入后发现一篇都没有（或读取失败），当场建一篇【未命名】；
- *   删掉最后一篇后同样按这条补一篇；
- * - 永远有一行被选中：列表每次重画完就选中第一行，并把它的标题和正文载进编辑器。
- * 换句话说没有"新增态"：新建只有一条路，就是 Header 上的加号按钮广播的 addArticle
- * （清空标题输入框与正文 → 入库一篇【未命名】 → 插到列表最前面并选中它）。
- * 删除只有一条路：右键列表行 → 菜单里的"删除此文章"（删掉的就是右键命中的那篇）。
+ * 顺带管着"当前编辑的是哪一篇"：
+ * - 列表每次重画完就选中第一行（列表按修改时间倒序，第一行就是最近改过的那篇），
+ *   并把它的标题和正文载进编辑器；切分类就等于换一篇来编辑；
+ * - 列表允许是空的：选中了没有文章的分类、或首次启动库里一篇都没有，此时没有"当前这篇"
+ *   （编辑器清空、selectedId 为空），右侧编辑面板由 EmptyMask 盖住，中间只留一个「新建文章」按钮。
+ * 换句话说没有"自动补一篇"：新建只有一条路，就是 addArticle
+ * （清空标题输入框与正文 → 入库一篇【未命名】 → 插到列表最前面并选中它），
+ * Header 上的加号和遮罩里的按钮都广播它。
+ * 删除只有一条路：右键列表行 → 菜单里的"删除此文章"（删掉的就是右键命中的那篇）；
+ * 删掉最后一篇之后同样按空列表处理：清空编辑器、盖遮罩。
  * 编辑过程中的改标题/改正文：立刻排队写回当前选中这篇（标题正文一起更新），排队期间最多 2 秒写一次；
  * 另外两个强制落库的点：标题输入框或正文失焦时立刻写一次（不等这 2 秒），关窗前再兜一次（见 flush）。
  */
@@ -124,23 +128,52 @@ class ArticleTitle extends CtrlBase {
       if (categoryId !== this.categoryId) return;
       rows = (data as { articles?: ArticleRow[] }).articles ?? [];
     } catch {
-      // 读取失败：渲染空列表，接下来照样补一篇【未命名】，不让界面停在"没有文章"的状态
+      // 读取失败：渲染空列表。空列表是正常状态、不是"补一篇"的理由，接下来按空处理：清空编辑器并盖遮罩
       rows = [];
     }
     this.renderList(rows);
-    // 列表有了 → 选中第一行（同时把它的标题正文载进编辑器）；一篇都没有 → 当场建一篇
+    // 列表有了 → 选中第一行（同时把它的标题正文载进编辑器）；一篇都没有 → 清空编辑器 + 盖遮罩
     await this.ensureSelection();
     // 篇数可能刚变过（删掉一篇、或启动时空库补的那篇）：让状态栏重新数一次
     void StatusBar.refreshCounts();
   }
 
-  /** 保证"列表里有文章、且有一篇被选中"这两条不变量 */
+  /**
+   * 列表重画完之后挑一篇选中：
+   * 有文章就选第一行（列表按修改时间倒序，第一行就是最近改过的那篇，切换分类也就跟着换一篇）；
+   * 一篇都没有就把编辑器腾空、交给遮罩。
+   * 这里不再"补一篇【未命名】"：空列表是正常状态，新建只走 addArticle
+   */
   private async ensureSelection(): Promise<void> {
     if (!this.list.childElementCount) {
-      await this.createArticle(); // 一篇都没有：createArticle 会补一行并选中它
+      // 切走之前先把上一篇没落的改动写回它自己身上，再把编辑器腾空
+      this.flushSave();
+      this.clearSelection();
       return;
     }
     await this.select(this.list.firstElementChild as HTMLElement);
+  }
+
+  /**
+   * 摘掉选中态、把编辑器腾空并盖住右侧面板：列表被过滤空了（切到空分类、删掉最后一篇）时用它。
+   * 之后没有"当前这篇"，selectedId 为空，saveNow 也就不会拿 null 去写库；
+   * 新建由遮罩里的「新建文章」按钮发起，建在当前分类下（没选分类就是未分类）
+   */
+  private clearSelection(): void {
+    this.selectedItem?.classList.remove("selected");
+    this.selectedItem = null;
+    this.selectedId = null;
+    this.dirty = false;
+    // 清空是程序化改动，不算用户在编辑
+    this.suppress = true;
+    EditorTitle.input.value = "";
+    EditorContent.setContent("");
+    this.suppress = false;
+    // 遮罩只是盖住、挡不住键盘：焦点留在标题框或正文里的话，打进去的字没有存处
+    (document.activeElement as HTMLElement | null)?.blur();
+    EmptyMask.setVisible(true);
+    // 正文是程序化清空的，未必触发编辑事件，直接让状态栏重算一次字数
+    StatusBar.updateWords();
   }
 
   private renderList(rows: ArticleRow[]): void {
@@ -247,6 +280,8 @@ class ArticleTitle extends CtrlBase {
       this.suppress = false;
       // 新建不经过 loadAndRender，篇数得在这里单独刷一次
       void StatusBar.refreshCounts();
+      // 列表有行了：收起遮罩（从空分类或空库里建第一篇时它正盖着）
+      EmptyMask.setVisible(false);
     } catch {
       // 入库失败：界面停在原来那篇上，用户可以再点一次加号重试
     }
@@ -268,7 +303,7 @@ class ArticleTitle extends CtrlBase {
   /**
    * 删除一篇：从库里删掉后重新请求列表、整片重画，由 ensureSelection 选中重画后的第一行。
    * 列表是按修改时间倒序取的，所以第一行就是剩下这些里最新改过的那篇；
-   * 删到最后一篇都没有了，ensureSelection 会当场建一篇【未命名】。
+   * 删到一篇都不剩，就按空列表处理：清空编辑器、盖遮罩（不再自动补一篇）。
    * 不问用户确认：删错的成本低于每次删都要点一下。
    */
   private async removeArticle(item: HTMLElement): Promise<void> {
@@ -331,6 +366,11 @@ class ArticleTitle extends CtrlBase {
 
   private async saveNow(): Promise<void> {
     this.saveTimer = 0;
+    // 没有选中的文章（列表被过滤空了、遮罩正盖着）：没有可以写回的地方，改动作废
+    if (this.selectedId == null) {
+      this.dirty = false;
+      return;
+    }
     this.saving = true;
     // 标题与正文一起写给当前选中的这篇：不管是哪个变了我们俩都存，省得判断来源。
     // 这一轮要写的东西已经取出来，写的过程中新来的改动算下一轮

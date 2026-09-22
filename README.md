@@ -8,10 +8,10 @@
 
 ## 特性
 
-- **本地存储**：数据落在 `%APPDATA%\DraftDepot`，一个 SQLite 库 + 一个图片目录
-- **富文本编辑器**：基于 roosterjs content model
-- **代码块高亮**：shiki 渲染，代码块自带语言标记，发布时换算成各平台认的形式
-- **图片即贴即存**：粘贴或拖入的截图自动落盘到数据目录
+- **本地存储**：数据目录 `%APPDATA%\DraftDepot`
+- **富文本编辑器**：基于 [roosterjs](https://github.com/microsoft/roosterjs)
+- **代码块高亮**：基于 [shiki](https://github.com/shikijs/shiki) 代码着色
+- **图片即贴即存**：粘贴或拖入的图像自动落盘到数据目录
 - **自动保存**：改动后 2 秒内入库
 - **分类与文章管理**：分类树支持多层嵌套，右键改名/删除；
 - **单文件发行**：一个 exe 独立运行，仅 3 MB

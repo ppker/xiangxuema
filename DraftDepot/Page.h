@@ -28,8 +28,10 @@ private:
 	void handleGetImageDir(JsonObject& result);
 	/**
 	 * args: { name, width, height, oldName? }；把 images 里 name 这张图按新的宽高另存一份（原图留着）。
-	 * oldName 是这次要换掉的旧文件（上一次拖出来的那份）：生成成功后把它删掉，
-	 * 于是"原图 + 最后拖出来的那一份"两个文件，不会每拖一个尺寸就攒一份。
+	 * oldName 是正文里当前引用的那份：生成成功后把 image 表里指着它的记录改指到新的一份
+	 * （见 Db/Image.h 的 renameReferences），再把同一张原图早先拖出来的其它尺寸都清掉
+	 * （扫目录，见 Page.cpp 的 removeStaleResized），于是目录里只剩"原图 + 最后拖出来的那一份"。
+	 * 还有文章在引用的那份留着不动——删了那边正文里的图就裂了。
 	 *
 	 * 回包是异步的：缩放放在后台线程做（大图要几百毫秒，在消息回调里做会把界面卡住），
 	 * 做完投 WM_DD_POST_JSON 回 UI 线程再发。返回 { name }：新文件名（原主名 + @宽x高 + 原扩展名），

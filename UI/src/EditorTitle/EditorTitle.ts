@@ -22,6 +22,7 @@ const publishTargets = [
   { title: "发布到掘金", type: "JueJin" },
   { title: "发布到InfoQ", type: "InfoQ" },
   { title: "发布到51CTO", type: "51CTO" },
+  { title: "发布到阿里云开发者社区", type: "AliYun" },
 ];
 
 /**
@@ -32,7 +33,7 @@ const publishTargets = [
  * （见 Markdown）；InfoQ 也是给 Markdown——但它是富文本编辑器，由站点脚本把整篇 Markdown 做成
  * .md 文件交给它自己的"导入 Markdown"，这样代码块的语言标识才不会丢（见 JS/InfoQ.js）。
  * 图片都由站点脚本在对方编辑页里传图床（见 JS/WeiXin.js、JS/ZhiHu.js、JS/CSDN.js、JS/OSC.js、
- * JS/CnBlogs.js、JS/JueJin.js、JS/InfoQ.js、JS/51CTO.js）。
+ * JS/CnBlogs.js、JS/JueJin.js、JS/InfoQ.js、JS/51CTO.js、JS/AliYun.js）。
  */
 const forSite: Record<string, (html: string) => Promise<string> | string> = {
   WeiXin: forWeiXin,
@@ -44,6 +45,8 @@ const forSite: Record<string, (html: string) => Promise<string> | string> = {
   InfoQ: toMarkdown,
   // 键要加引号：以数字开头的标识符不合法（站点 type 本身仍是字符串 "51CTO"）
   "51CTO": toMarkdown,
+  // 阿里云开发者社区：写文章页是 Markdown 源码编辑器（左边源码右边预览），给 Markdown
+  AliYun: toMarkdown,
 };
 
 /**

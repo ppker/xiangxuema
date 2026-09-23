@@ -11,6 +11,7 @@ OSC.js RCDATA "JS/OSC.js"
 JueJin.js RCDATA "JS/JueJin.js"
 InfoQ.js RCDATA "JS/InfoQ.js"
 51CTO.js RCDATA "JS/51CTO.js"
+AliYun.js RCDATA "JS/AliYun.js"
 
 ; 前端构建产物（UI/dist）：文件名带 hash，手改一次就得改一次，所以由 UI/scripts/gen-dist-rc.mjs
 ; 每次 npm run build 直接重写下面标记之间的这一块，别手改。
@@ -24,6 +25,7 @@ iconfont.woff2 RCDATA "..\\UI\\dist\\iconfont.woff2"
 index.html RCDATA "..\\UI\\dist\\index.html"
 logo.svg RCDATA "..\\UI\\dist\\logo.svg"
 logo51CTO.png RCDATA "..\\UI\\dist\\logo51CTO.png"
+logoAliYun.png RCDATA "..\\UI\\dist\\logoAliYun.png"
 logoBaiJiaHao.png RCDATA "..\\UI\\dist\\logoBaiJiaHao.png"
 logoCSDN.png RCDATA "..\\UI\\dist\\logoCSDN.png"
 logoCnBlogs.png RCDATA "..\\UI\\dist\\logoCnBlogs.png"

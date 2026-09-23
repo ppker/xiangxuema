@@ -176,6 +176,7 @@
     <None Include="JS\JueJin.js" />
     <None Include="JS\InfoQ.js" />
     <None Include="JS\51CTO.js" />
+    <None Include="JS\AliYun.js" />
     <None Include="packages.config" />
     <None Include="UI\iconfont.css" />
     <None Include="UI\index.html" />

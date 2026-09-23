@@ -28,6 +28,9 @@ namespace
 	// 51CTO：直接给发布文章的页面（Markdown 编辑器），没登录会被它送到登录页，
 	// 登录成功后又自动回来（与知乎同一套）
 	{ L"51CTO",  L"https://blog.51cto.com/blogger/publish" },
+	// 阿里云开发者社区：直接给新建文章的页面（Markdown 编辑器），没登录会被它送到登录页，
+	// 登录成功后又自动回来（与知乎同一套）
+	{ L"AliYun", L"https://developer.aliyun.com/article/new#/" },
 	};
 
 	/// 与 JS 的 Date.now() 同口径：Unix 纪元起的毫秒数，URL 里的 timestamp 要 13 位

@@ -68,9 +68,10 @@ export default class ImageResizePlugin {
       if (this.done.get(img) === key) continue;
       const src = img.getAttribute("src") ?? "";
       if (!src.startsWith(IMAGE_URL_PREFIX)) continue; // 外链图、还没落盘的图：都不动
-      // 当前引用的这份就是"上一次拖出来的"：原生生成新的一份之后会把它删掉，
-      // 目录里因此只剩原图与最后拖出来的那一份
+      // file 是正文里当前引用的那份：原生拿它把库里的记录改指到新的一份（记录比正文滞后一步）
       const file = src.slice(IMAGE_URL_PREFIX.length);
+      // 原生另存出新的一份之后，会把这张原图早先拖出来的其它尺寸一并清掉，
+      // 目录里因此只剩原图与最后拖出来的那一份（见 ImageStore 的 resizeImage）
       const name = await resizeImage(originNameOf(file), width, height, file);
       // 成了没成都记下来：失败的（格式不支持）别再来第二轮，尺寸真改了才会重试
       this.done.set(img, key);

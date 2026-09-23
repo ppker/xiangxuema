@@ -71,12 +71,22 @@ export function originNameOf(name: string): string {
 
 /**
  * 让原生把图片目录里这张图按新的宽高另存一份，返回新文件名。
- * 原图不动。oldName 是这次要换掉的那份（上一次拖出来的）：原生生成成功后把它删掉，
+ * 原图不动。oldName 是正文里当前引用的那份（可能是原图，也可能是上一次拖出来的）：
+ * 原生据此把库里指向它的记录改指到新的一份（正文改了但要等下次入库，记录是滞后的），
+ * 然后把这张原图早先拖出来的其它尺寸一并清掉——它扫目录认"原主名@…"，不靠前端报，
+ * 连着拖几下时前端报不全；还有别的文章在引用的那份它留着，免得删出裂图。
  * 于是目录里只剩"原图 + 最后拖出来的这一份"，不会每拖一个尺寸就攒一份。
  * 原生处理不了这个格式（或读写失败）时给空串：调用方继续用原图，等于没这回事。
  */
-export async function resizeImage(name: string, width: number, height: number, oldName: string): Promise<string> {
-  const res = (await Msg.invoke("resizeImage", { name, width, height, oldName })) as { name?: string } | null;
+export async function resizeImage(
+  name: string,
+  width: number,
+  height: number,
+  oldName: string,
+): Promise<string> {
+  const res = (await Msg.invoke("resizeImage", { name, width, height, oldName })) as {
+    name?: string;
+  } | null;
   return res?.name ?? "";
 }
 

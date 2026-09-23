@@ -64,7 +64,24 @@ function renderCodeSpan(text: string): string {
 let imageAsHtml = false;
 
 /**
- * 图片：默认 ![alt](src)；imageAsHtml 时输出原始 <img>，并把编辑器里调好的 width/height 带上——
+ * 图片显示出来的宽高（输出 <img> 的 width/height 用）。
+ * 以 style 为准：拖拽改尺寸时 roosterjs 只把新尺寸写进 style（见它的 imageEdit/applyChange），
+ * width/height 属性还留着拖之前的旧值——照属性输出的话，图是缩放后的、宽高却是旧的，
+ * 到了对方网站上就按旧尺寸显示，跟编辑器里看到的对不上。没有 style 时才用属性
+ */
+function imageSize(el: Element): string {
+  const style = (el as HTMLElement).style;
+  return ["width", "height"]
+    .map((name) => {
+      const css = style?.[name as "width"] ?? "";
+      const value = css.endsWith("px") ? css.slice(0, -2) : el.getAttribute(name);
+      return value ? ` ${name}="${value}"` : "";
+    })
+    .join("");
+}
+
+/**
+ * 图片：默认 ![alt](src)；imageAsHtml 时输出原始 <img>，并把显示出来的 width/height 带上——
  * Markdown 的图片语法没法带尺寸，写成 ![alt](src) 那边就按原图大小显示了，排版时缩过的图全被放大。
  * alt 里的方括号会撑破 Markdown 语法，去掉（输出 <img> 时不用管，但统一清掉没坏处）
  */
@@ -72,11 +89,7 @@ function renderImage(el: Element): string {
   const src = el.getAttribute("src") ?? "";
   const alt = (el.getAttribute("alt") ?? "").replace(/[[\]]/g, "");
   if (!imageAsHtml) return `![${alt}](${src})`;
-  const size = ["width", "height"]
-    .filter((name) => el.hasAttribute(name))
-    .map((name) => ` ${name}="${el.getAttribute(name)}"`)
-    .join("");
-  return `<img src="${src}"${size}${alt ? ` alt="${alt}"` : ""}>`;
+  return `<img src="${src}"${imageSize(el)}${alt ? ` alt="${alt}"` : ""}>`;
 }
 
 /** 链接：地址里有空格或括号时套尖括号，否则 Markdown 会把后半截当成标题文字 */

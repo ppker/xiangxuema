@@ -4,7 +4,7 @@ import Msg from "./Msg";
 const IMAGE_HOST_PREFIX = "https://app.localhost/";
 
 /** 图片都存到数据目录的 images 子目录，正文里引用时的 URL 前缀 */
-const IMAGE_URL_PREFIX = IMAGE_HOST_PREFIX + "images/";
+export const IMAGE_URL_PREFIX = IMAGE_HOST_PREFIX + "images/";
 
 /** 原生给的图片目录句柄（数据目录下的 images），页面存活期间一直有效，取一次就够 */
 let imageDir: FileSystemDirectoryHandle | null = null;
@@ -55,6 +55,29 @@ export async function saveImage(blob: Blob, ext: string): Promise<string> {
   await writable.write(blob);
   await writable.close();
   return IMAGE_URL_PREFIX + name;
+}
+
+/**
+ * 缩放产物：原主名 + @宽x高 + 原扩展名（img_x.png 拖成 600x400 → img_x@600x400.png），
+ * 由原生另存（见 Page::handleResizeImage）。名字是确定性的，同一个尺寸拖多少次都只有一份。
+ * 后缀里认得出原图是谁，所以放大时是拿原图重新生成，不会在缩略图上越放越糊
+ */
+const RESIZED_SUFFIX = /@\d+x\d+(\.[^.]+)$/;
+
+/** 去掉缩放后缀，还原出原图的文件名（本身不是缩放产物的原样返回） */
+export function originNameOf(name: string): string {
+  return name.replace(RESIZED_SUFFIX, "$1");
+}
+
+/**
+ * 让原生把图片目录里这张图按新的宽高另存一份，返回新文件名。
+ * 原图不动。oldName 是这次要换掉的那份（上一次拖出来的）：原生生成成功后把它删掉，
+ * 于是目录里只剩"原图 + 最后拖出来的这一份"，不会每拖一个尺寸就攒一份。
+ * 原生处理不了这个格式（或读写失败）时给空串：调用方继续用原图，等于没这回事。
+ */
+export async function resizeImage(name: string, width: number, height: number, oldName: string): Promise<string> {
+  const res = (await Msg.invoke("resizeImage", { name, width, height, oldName })) as { name?: string } | null;
+  return res?.name ?? "";
 }
 
 /**

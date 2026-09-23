@@ -5,9 +5,11 @@
 #include "Db/Category.h"
 #include "Db/Article.h"
 #include "Util.h"
+#include "ImageResize.h"
 
 #include <fstream>
 #include <filesystem>
+#include <thread>
 
 Page::Page(Window* win, ComPtr<ICoreWebView2>& webview) :win{ win }, webview{ webview }
 {
@@ -76,6 +78,12 @@ HRESULT Page::onMsgReceived(ICoreWebView2* webview, ICoreWebView2WebMessageRecei
     else if (method == L"getImageDir") {
         // 把图片目录句柄随回包发给 JS（自带回包逻辑，不走下面的统一 PostWebMessageAsJson）
         handleGetImageDir(result);
+        return S_OK;
+    }
+    else if (method == L"resizeImage") {
+        // args: { name, width, height, oldName? }；编辑器里把图拖成新的显示尺寸后，按这个尺寸另存一份。
+        // 自带回包（异步，见 Page.h 的说明），所以不走下面的统一 PostWebMessageAsJson
+        handleResizeImage(param);
         return S_OK;
     }
     else if (method == L"getCategories") {
@@ -336,4 +344,69 @@ void Page::handleGetImageDir(JsonObject& result)
     result.SetNamedValue(L"error", JsonValue::CreateStringValue(L"获取图片目录失败"));
     auto json = result.Stringify();
     webview->PostWebMessageAsJson(json.c_str());
+}
+
+void Page::postJson(const std::wstring& json)
+{
+    webview->PostWebMessageAsJson(json.c_str());
+}
+
+void Page::handleResizeImage(const JsonObject& param)
+{
+    JsonObject args = Util::msgArgs(param);
+    std::wstring name = Util::argString(args, L"name");
+    std::wstring oldName = Util::argString(args, L"oldName");
+    auto width = static_cast<int>(Util::argNumber(args, L"width"));
+    auto height = static_cast<int>(Util::argNumber(args, L"height"));
+    std::wstring id{ param.GetNamedString(L"id") };
+    HWND hwnd = win->hwnd;
+
+    // 缩放放到后台线程做：WIC 处理一张大图要几百毫秒，直接在消息回调里做会把界面卡住这一会儿。
+    // 回包只能回 UI 线程发（WebView2 的接口只认建它的那个线程），所以做完投 WM_DD_POST_JSON，
+    // 让窗口过程替我们把 JSON 发出去（见 Page.h 里那条消息的说明）
+    std::thread([hwnd, id, name, oldName, width, height]()
+    {
+        std::wstring newName;
+        // name 是正文里 img 的地址换来的，只认"一个裸文件名"：带分隔符或 .. 的一律不碰，
+        // 免得被拼成 ../ 去读写 images 目录以外的文件
+        bool plain = !name.empty() && name.find_first_of(L"/\\:") == std::wstring::npos
+            && name.find(L"..") == std::wstring::npos;
+        if (plain && width > 0 && height > 0)
+        {
+            std::filesystem::path src{ name };
+            auto dir = Env::getDataPath() / L"images";
+            auto stem = src.stem().wstring();
+            auto ext = src.extension().wstring();
+            // 目标名是确定性的：原主名 + @宽x高 + 原扩展名。后缀里认得出原图是谁，
+            // 前端靠这一点在放大时仍从原图重新生成，不会拿缩略图去放大
+            newName = stem + L"@" + std::to_wstring(width) + L"x" + std::to_wstring(height) + ext;
+            auto dst = dir / newName;
+            std::error_code ec;
+            if (std::filesystem::exists(dst, ec))
+            {
+                // 已经有了：直接给名字，别再生成一遍
+            }
+            else if (!ImageResize::resize((dir / src).wstring(), dst.wstring(), width, height))
+            {
+                std::filesystem::remove(dst, ec); // 失败可能留下半截文件
+                newName.clear();                  // 空串 = 没处理，前端继续用原图
+            }
+
+            // 只留"原图 + 最后拖出来的这一份"：这次换掉的那份旧产物（oldName）可以删了。
+            // 只认同一张原图的产物（原主名@…+ 同扩展名），别把别的图或原图自己误删了
+            if (!newName.empty() && oldName.size() > stem.size() + ext.size() + 1
+                && oldName != newName && oldName != name
+                && oldName.rfind(stem + L"@", 0) == 0
+                && oldName.compare(oldName.size() - ext.size(), ext.size(), ext) == 0)
+            {
+                std::filesystem::remove(dir / oldName, ec);
+            }
+        }
+
+        // 手工拼而不是用 JsonObject：winrt 的对象带着线程公寓，后台线程上不好摆弄；
+        // id 与文件名都是程序生成的（不含引号与反斜杠），直接拼出来就是合法 JSON
+        std::wstring json = L"{\"id\":\"" + id + L"\",\"result\":{\"name\":\"" + newName + L"\"}}";
+        auto* payload = new std::wstring{ std::move(json) };
+        if (!PostMessage(hwnd, WM_DD_POST_JSON, 0, reinterpret_cast<LPARAM>(payload))) delete payload;
+    }).detach();
 }

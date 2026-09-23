@@ -82,7 +82,7 @@ export default class ImagePlugin {
 }
 
 /** 深度遍历内容模型里的所有段落（含表格单元格、列表、引用这类块组内的） */
-function walk(group: { blocks: readonly ReadonlyContentModelBlock[] }, visit: (segment: ContentModelSegment) => void): void {
+export function walk(group: { blocks: readonly ReadonlyContentModelBlock[] }, visit: (segment: ContentModelSegment) => void): void {
   for (const block of group.blocks) {
     switch (block.blockType) {
       case "Paragraph":

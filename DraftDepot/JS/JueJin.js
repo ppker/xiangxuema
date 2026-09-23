@@ -26,7 +26,7 @@ const CHECK_INTERVAL = 600;
 /** 正文里的图：https://app.localhost/images/<文件名>；不是这个前缀的（外链图）抓不到 */
 const IMAGE_URL_PREFIX = "https://app.localhost/images/";
 
-/** 抓 Markdown 里的图片地址：![](https://app.localhost/images/xxx.png) → 文件名那一截 */
+/** 抓正文里的图片地址：![](...) 与 <img src="..."> 都认 → 文件名那一截 */
 const IMAGE_URL_PATTERN = /https:\/\/app\.localhost\/images\/([^)\s"']+)/g;
 
 /** 传一张图最多等这么久：五步链路加网络，慢的时候要好几秒，大图更久 */

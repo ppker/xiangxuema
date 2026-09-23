@@ -39,11 +39,11 @@ const forSite: Record<string, (html: string) => Promise<string> | string> = {
   ZhiHu: forZhiHu,
   CSDN: forCSDN,
   OSC: toMarkdown,
-  // 博客园与掘金要的是原始 <img>（带编辑器里调好的宽高），![]() 会把尺寸丢掉，
+  // 博客园、掘金、InfoQ 要的是原始 <img>（带编辑器里调好的宽高），![]() 会把尺寸丢掉，
   // 见 Markdown.ts 的 imageAsHtml
   CnBlogs: (html) => toMarkdown(html, { imageAsHtml: true }),
   JueJin: (html) => toMarkdown(html, { imageAsHtml: true }),
-  InfoQ: toMarkdown,
+  InfoQ: (html) => toMarkdown(html, { imageAsHtml: true }),
   // 键要加引号：以数字开头的标识符不合法（站点 type 本身仍是字符串 "51CTO"）
   "51CTO": toMarkdown,
 };

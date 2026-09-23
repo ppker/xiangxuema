@@ -37,7 +37,7 @@ const CHECK_INTERVAL = 600;
 /** 正文里的图：https://app.localhost/images/<文件名>；不是这个前缀的（外链图）抓不到 */
 const IMAGE_URL_PREFIX = "https://app.localhost/images/";
 
-/** 抓 Markdown 里的图片地址：![](https://app.localhost/images/xxx.png) → 文件名那一截 */
+/** 抓正文里的图片地址：![](...) 与 <img src="..."> 都认 → 文件名那一截 */
 const IMAGE_URL_PATTERN = /https:\/\/app\.localhost\/images\/([^)\s"']+)/g;
 
 /** 导入 Markdown 后正文里出现内容的最长等待（本地解析，通常一两拍就有） */
@@ -68,16 +68,36 @@ function getEditor() {
   return document.querySelector('[contenteditable="true"]');
 }
 
+/** 轮询里的"等一拍" */
+function wait(ms) {
+  return new Promise((done) => setTimeout(done, ms));
+}
+
 /**
  * 标题：Vue 受控组件（v-model 绑在 value 上），直接写 input.value 它收不到——
  * Vue 把实例上的 value 改写成自己的，写 DOM 属性只是改了这一个，它内部那个变量还是旧值，
  * 下一轮渲染就把改动冲掉了。只有 HTMLInputElement 原型上的原生 setter 能真正写进去，
- * 补一次 input 事件它才会当成"用户敲进去的"收进 model
+ * 补一次 input 事件它才会当成"用户敲进去的"收进 model。
+ *
+ * 写完必须复查：这个框在 SPA 里常常比 Vue 的监听器早一步进 DOM，那一瞬派 input 没人接，
+ * 写进去的 value 会被它下一次渲染冲回空串——在控制台里手敲同样的代码能成，
+ * 正是因为那时候页面已经稳了。所以写完等一拍看 value 还在不在，被冲掉就重取元素再来一次；
+ * 元素每轮重取：SPA 也可能把整个框换掉，攥着旧节点写就是白写
  */
-function setTitle(input, text) {
+async function setTitle(text, tries = 5) {
   const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
-  setter.call(input, text);
-  input.dispatchEvent(new Event("input", { bubbles: true }));
+  for (let i = 0; i < tries; i++) {
+    const input = getTitleInput();
+    if (!input) {
+      await wait(300);
+      continue;
+    }
+    setter.call(input, text);
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    await wait(300);
+    if (input.value === text) return;
+  }
+  console.log("[DraftDepot] 标题没能写进 InfoQ 的标题框");
 }
 
 /**
@@ -196,10 +216,12 @@ const timer = setInterval(async () => {
 
   // 灌标题正文这一整段都盖着遮罩：那期间页面是半截的，别让人插手（见 Msg.js）
   await DDMsg.withMask(async () => {
-    if (article.title) setTitle(titleInput, article.title);
+    if (article.title) await setTitle(article.title);
     // 字段叫 html，这一趟装的其实是 Markdown（见文件头）：图先传上去换成图床地址，再整篇交给它
     // 自己的导入——语言标识跟着 Markdown 一起过去，自己塞进富文本就只能丢
     if (article.html) await importMarkdown(mdInput, await uploadImages(article.html));
+    // 导入会把正文整块重渲染，标题可能被这一轮渲染冲掉；已经写进去的话这一句 300ms 内就回来了
+    if (article.title) await setTitle(article.title);
   });
   console.log("[DraftDepot] 文章已灌入 InfoQ 编辑器");
 }, CHECK_INTERVAL);

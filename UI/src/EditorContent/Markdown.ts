@@ -60,7 +60,7 @@ function renderCodeSpan(text: string): string {
   return fence + pad + text + pad + fence;
 }
 
-/** 图片输出成原始 <img> 吗（博客园与掘金这两条链路要，见 toMarkdown 的 options.imageAsHtml） */
+/** 图片输出成原始 <img> 吗（博客园、掘金、InfoQ 这几条链路要，见 toMarkdown 的 options.imageAsHtml） */
 let imageAsHtml = false;
 
 /**
@@ -237,7 +237,7 @@ function hasBlockChild(el: Element): boolean {
 
 /**
  * @param options.imageAsHtml 图片输出成原始 <img>（带 width/height）而不是 ![alt](src)。
- *   博客园与掘金这两条链路传：它们的 Markdown 编辑器认内联 HTML，
+ *   博客园、掘金、InfoQ 这几条链路传：它们的 Markdown 编辑器认内联 HTML，
  *   而 ![alt](src) 会把编辑器里调好的尺寸丢掉
  */
 export default function toMarkdown(html: string, options: { imageAsHtml?: boolean } = {}): string {

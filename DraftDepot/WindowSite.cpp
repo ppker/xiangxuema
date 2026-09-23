@@ -152,6 +152,17 @@ void WindowSite::takeArticle(JsonObject& result)
 	result.SetNamedValue(L"result", article);
 }
 
+void WindowSite::markPublished(JsonObject& result)
+{
+	published = true;
+	result.SetNamedValue(L"ok", JsonValue::CreateBooleanValue(true));
+}
+
+void WindowSite::isPublished(JsonObject& result)
+{
+	result.SetNamedValue(L"published", JsonValue::CreateBooleanValue(published));
+}
+
 HRESULT WindowSite::onCtrlReady(HRESULT result, ICoreWebView2Controller* ctrl)
 {
 	this->ctrl = ctrl;

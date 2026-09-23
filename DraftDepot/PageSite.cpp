@@ -57,6 +57,14 @@ HRESULT PageSite::onMsgReceived(ICoreWebView2* webview, ICoreWebView2WebMessageR
 		// args: 无；站点脚本进了对方编辑器后来取"待发布的文章"（openSite 时塞进来的），由 WindowSite 交出
 		win->takeArticle(result);
 	}
+	else if (method == L"setPublished") {
+		// args: 无；站点脚本把文章灌进对方编辑器之后调用，由 WindowSite 记下"这一轮已经发过了"
+		win->markPublished(result);
+	}
+	else if (method == L"getPublished") {
+		// args: 无；站点脚本（每个文档重跑一遍）进来先问一句：这一轮是不是已经发过了
+		win->isPublished(result);
+	}
 	else if (method == L"getImageDir") {
 		// args: 无；自带回包：目录句柄只能随附加对象一起发，成功后直接返回
 		handleGetImageDir(result);

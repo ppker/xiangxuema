@@ -23,6 +23,7 @@ import { listBulletButton } from "./ListBullet/ListBullet";
 import { listNumberButton } from "./ListNumber/ListNumber";
 import { linkRemoveButton } from "./LinkRemove/LinkRemove";
 import { imageButton } from "./Image/Image";
+import { horizonLineButton } from "./HorizonLine/HorizonLine";
 
 /**
  * 工具栏分组：组内按声明顺序排列，组间自动插入竖向分隔线。
@@ -46,8 +47,8 @@ const GROUPS: CtrlBase[][] = [
   [TextColor, BackgroundColor, quoteButton],
   [Align, LineHeight],
   [listBulletButton, listNumberButton],
-  // 插入类：链接 + 图片 + 代码块
-  [Link, linkRemoveButton, imageButton, Code],
+  // 插入类：链接 + 图片 + 代码块 + 横线
+  [Link, linkRemoveButton, imageButton, Code, horizonLineButton],
 ];
 
 /**

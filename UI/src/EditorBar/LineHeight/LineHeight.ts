@@ -10,15 +10,17 @@ import { cssLengthToPx } from "../cssLength";
 const LINE_HEIGHTS = ["1", "1.5", "2", "2.5", "3"];
 
 /** 编辑器正文默认行高：需与 EditorContent.scss 中 #editorContent 的 line-height 保持一致。
- *  段落未显式设置行高时继承该默认值，回显视为选中档位 "1.5"。 */
-const DEFAULT_LINE_HEIGHT = "1.5";
+ *  段落未显式设置行高时继承该默认值，回显视为选中档位 "2"；
+ *  选回这一档时不写内联行高（并摘掉之前设过的），让段落回到继承状态——
+ *  默认样式归 CSS，只有用户手动改过的档位才值得写进入库的 HTML。 */
+const DEFAULT_LINE_HEIGHT = "2";
 
 /**
  * 行高下拉（模块单例）。
  * 按钮为图标 + 箭头，点开展开挂到 body 的下拉；下拉项为固定倍数，选择后应用并回显选中态。
  */
 class LineHeight extends CtrlBase {
-  /** 当前行高档位（"1"/"1.5"/…）；初始为默认档位，即下拉默认选中 "1.5" */
+  /** 当前行高档位（"1"/"1.5"/…）；初始为默认档位，即下拉默认选中 "2" */
   private current = DEFAULT_LINE_HEIGHT;
 
   /** 挂到 body 上的下拉弹层；null 表示当前未展开 */
@@ -91,7 +93,7 @@ class LineHeight extends CtrlBase {
    * 记录当前行高档位。
    * roosterjs 上报的 lineHeight 是浏览器折算后的绝对值（如 15px 字号下的默认行高为 "22.5px"），
    * 因此需除以当前字号 fontSize 换算回"相对字号的倍数"再匹配档位；
-   * 若拿不到可解析的行高（空文档/未聚焦），按默认档位 1.5 回显。
+   * 若拿不到可解析的行高（空文档/未聚焦），按默认档位 2 回显。
    */
   private render(lineHeight?: string, fontSize?: string): void {
     const linePx = cssLengthToPx(lineHeight);
@@ -140,7 +142,15 @@ class LineHeight extends CtrlBase {
           return false;
         }
         paragraphs.forEach((paragraph) => {
-          paragraph.format.lineHeight = value;
+          if (value === DEFAULT_LINE_HEIGHT) {
+            // 选回默认档位：不写内联行高，让段落从 #editorContent 继承。
+            // roosterjs 的行高 applier 只在有值时写 style、不会帮我们清，
+            // 所以之前设过别档而留在元素上的 line-height 得自己摘掉，否则它还会压着继承值
+            delete paragraph.format.lineHeight;
+            paragraph.cachedElement?.style.removeProperty("line-height");
+          } else {
+            paragraph.format.lineHeight = value;
+          }
         });
         return true;
       },

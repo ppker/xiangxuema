@@ -17,8 +17,8 @@ InfoQ.js RCDATA "JS/InfoQ.js"
 ; 只有 Release 才嵌：Debug 走 vite 开发服务器，把这些再编进 exe 只是白白拖慢链接
 #ifndef _DEBUG
 ; >>> dist
-assets/index-BZ8RaFwT.css RCDATA "..\\UI\\dist\\assets\\index-BZ8RaFwT.css"
-assets/index-p2TZJNZe.js RCDATA "..\\UI\\dist\\assets\\index-p2TZJNZe.js"
+assets/index-BUT45Fcn.js RCDATA "..\\UI\\dist\\assets\\index-BUT45Fcn.js"
+assets/index-DSdlpAkx.css RCDATA "..\\UI\\dist\\assets\\index-DSdlpAkx.css"
 iconfont.css RCDATA "..\\UI\\dist\\iconfont.css"
 iconfont.woff2 RCDATA "..\\UI\\dist\\iconfont.woff2"
 index.html RCDATA "..\\UI\\dist\\index.html"

@@ -6,9 +6,23 @@
   padding: 8px 16px;
   font-size: 15px;
   font-family: 微软雅黑, "Microsoft YaHei", sans-serif;
-  /* 默认行高 1.5（相对字号），与工具栏行高档位语义一致；需与 LineHeight.ts 的 DEFAULT_LINE_HEIGHT 同步 */
-  line-height: 1.5;
+  /* 默认行高 2（相对字号），与工具栏行高档位语义一致；需与 LineHeight.ts 的 DEFAULT_LINE_HEIGHT 同步 */
+  line-height: 2;
   color: #333333;
+  /* 插入的横线（<hr>）默认外边距。与行高一样留在 CSS 里当默认值，不写成内联 style，
+     入库的 HTML 就只有一个干净的 <hr> */
+  hr {
+    margin: 26px 12px;
+  }
+  /* 引用块的默认样式：灰底 + 左侧框线 + 缩进 + 深灰文字。同理留在 CSS 里当默认值，
+     入库的 HTML 就是一个干净的 <blockquote>（见 Quote.ts） */
+  blockquote {
+    margin: 1em 0 1em 2em;
+    padding: 8px 12px;
+    border-left: 3px solid #999999;
+    background-color: #f0f0f0;
+    color: #555555;
+  }
   overflow-y: auto;
   cursor: text;
   user-select: text;

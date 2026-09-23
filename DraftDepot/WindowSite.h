@@ -41,6 +41,10 @@ public:
 	 * 取过一次就清空：脚本每个文档（含页面自身刷新、跳转）都跑一遍，留着会被反复灌进编辑器。
 	 */
 	void takeArticle(JsonObject& result);
+	/// args: 无；站点脚本把文章灌进对方编辑器之后调用，记下"这一轮已经发过了"，返回 { ok }
+	void markPublished(JsonObject& result);
+	/// args: 无；站点脚本在新文档里问本窗口这一轮是不是已经发过，返回 { published }
+	void isPublished(JsonObject& result);
 public:
 	HWND hwnd;
 	/// 站点类型，由前端 openSite 的 args.type 传入（如公众号 "WeiXin"、CSDN "CSDN"）
@@ -52,6 +56,10 @@ public:
 	/// 待灌进对方编辑器的文章，见 takeArticle。取走即清空，所以两者同时为空 = 已经发过了
 	std::wstring articleTitle;
 	std::wstring articleHtml;
+	/// 文章已经交到对方编辑器里了（见 markPublished）。
+	/// 微信这类站点发布完会自己跳回首页，站点脚本在新文档里重跑时按它判断：已经发过就别再把人拽回编辑页。
+	/// 每个发布窗口一份、随窗口销毁，所以下一次发布天然是 false、不受影响
+	bool published = false;
 private:
 	static LRESULT CALLBACK winMsg(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam);
 	void createWin();

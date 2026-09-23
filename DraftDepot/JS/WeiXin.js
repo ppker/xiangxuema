@@ -2,7 +2,9 @@
 // 注入时前面拼了 Msg.js，所以直接用它挂的 window.DDMsg 跟 native 说话。
 // 职责：
 //   1. 盯住登录态与 token——失效就回登录页，拿到 token 就回传 C++ 存库，并直奔新建图文的编辑页；
-//   2. 进了编辑页就把"待发布的文章"（点发布按钮时由主编辑器交给 native 的）灌进微信编辑器。
+//   2. 进了编辑页就把"待发布的文章"（点发布按钮时由主编辑器交给 native 的）灌进微信编辑器；
+//   3. 灌完记一个"已发过"的标志（在 native 的发布窗口上）：微信发布成功后会自己跳回首页，
+//      本脚本在每个文档里都要重跑一遍，靠这个标志认出"这是发完之后的跳转"，不再把人拽回编辑页。
 //
 // 图片是唯一要额外跑一趟的事：正文里的图是 https://app.localhost/images/<文件名>（本程序 WebView2
 // 的虚拟映射，微信的服务器取不到）。早先的做法是在主编辑器那边就把图读成 base64 内联进 <img src>，
@@ -37,6 +39,37 @@ const EDITOR_WAIT_TIMEOUT = 30 * 1000;
 
 let lastToken = ""; // 已回传过的 token，避免每 600ms 重复往 C++ 发
 let filled = false; // 本文档已经灌过一轮：页面自身的后续刷新不该再糊一遍
+
+/**
+ * 本轮"文章已经交到微信编辑器里"了吗：null = 还没问到，由 native 的发布窗口说了算。
+ * 微信发布成功后会跳回首页，脚本在新文档里整个重跑，这时候必须认出"这不是刚登录完停在首页"，
+ * 否则会照老规矩把人又推回新建图文页——刚发完的那篇就这么被翻出来重填一遍。
+ * 标志记在 native 侧而不是 sessionStorage：发布窗口是一轮一份、关窗即没，
+ * 下一次发布天然从 false 开始，而不会像 storage 那样跨轮残留。
+ */
+let published = null;
+let publishedAsked = false;
+
+/** 问一次 native；每个文档只问一次（同一轮内答案不会变） */
+function askPublishedOnce() {
+  if (publishedAsked) return;
+  publishedAsked = true;
+  DDMsg.invoke("getPublished")
+    .then((data) => {
+      published = !!(data && data.published);
+    })
+    .catch(() => {
+      // 问不到就按"没发过"办：最坏是维持原来的跳转行为，不会让人卡在首页
+      published = false;
+    });
+}
+
+/** 灌完告诉 native 一声：这一轮的目标已经达成了 */
+function markPublished() {
+  return DDMsg.invoke("setPublished").catch((err) =>
+    console.log("[DraftDepot] 标记已发布失败", err),
+  );
+}
 
 // 从地址里抠 token：微信把它放在 query 上（登录后的落地页、编辑页都有）
 function getToken() {
@@ -219,10 +252,12 @@ function waitEditorAndFill() {
         clearInterval(wait);
         // 传图 + 灌标题正文这一整段都盖着遮罩：那期间页面是半截的，别让人插手（见 Msg.js）
         await DDMsg.withMask(() => fillArticle(true));
+        await markPublished();
       } else if ((!jsApi || (state && state.isReady)) && oldEditor) {
         // 拿不到 JSAPI（老页面），或它明说了不是新编辑器：按老办法来
         clearInterval(wait);
         await DDMsg.withMask(() => fillArticle(false));
+        await markPublished();
       }
     } catch (err) {
       console.log("[DraftDepot] 灌文章失败", err);
@@ -235,6 +270,16 @@ function waitEditorAndFill() {
 const timer = setInterval(() => {
   // 只在顶层文档干活：注入脚本每个 iframe 也会跑一遍，别钻到别人的框里去做判断
   if (window.self !== window.top) return;
+
+  // 先弄清本轮发过没有（每个文档只问一次）；答案没到之前这一拍什么都别做，
+  // 免得在拿到答案前的那 600ms 里已经把人推回编辑页了
+  askPublishedOnce();
+  if (published === null) return;
+  // 发过了：眼前这个页面多半是微信发布成功后自己跳回的首页，任务已完成，停手
+  if (published) {
+    clearInterval(timer);
+    return;
+  }
 
   // 登录态失效：页面出现"请重新登录"（<h2> 里带 #jumpUrl 那个链接）
   const jumpUrl = document.querySelector("#jumpUrl");

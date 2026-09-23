@@ -10,8 +10,8 @@ import { isCodeLang } from "../CodeHighlight";
  *   2. 图片 → ![alt](src)，**src 原样保留** https://app.localhost/images/<文件名>：
  *      那是本程序 WebView2 的虚拟映射，对方的服务器取不到；站点脚本（JS/OSC.js）在写作页里
  *      向 native 要一次图片目录句柄，按文件名取出文件传它的图床后再换掉地址（与知乎/CSDN 同一套；
- *      博客园那条在 JS/CnBlogs.js，是同一套的 Markdown 版）。
- *      博客园例外：它要的是原始 <img>（见 imageAsHtml），Markdown 语法带不上宽高；
+ *      博客园那条在 JS/CnBlogs.js，是同一套的 Markdown 版）。宽高不用带：正文里的图已经是按排版
+ *      尺寸缩放好的那一份，对方按原始尺寸显示就是我们调好的大小；
  *   3. 装饰性样式（文字色 / 背景色 / 字体 / 字号 / 行高 / 对齐）**一律丢掉**：Markdown 没这套语法，
  *      留着只能写成内联 HTML，而那边多半也不会认；
  *   4. 下划线与上/下标 → 保留成内联 HTML（<u> / <sup> / <sub>）：这几个在中文技术文里真会用到，
@@ -60,36 +60,11 @@ function renderCodeSpan(text: string): string {
   return fence + pad + text + pad + fence;
 }
 
-/** 图片输出成原始 <img> 吗（博客园、掘金、InfoQ 这几条链路要，见 toMarkdown 的 options.imageAsHtml） */
-let imageAsHtml = false;
-
-/**
- * 图片显示出来的宽高（输出 <img> 的 width/height 用）。
- * 以 style 为准：拖拽改尺寸时 roosterjs 只把新尺寸写进 style（见它的 imageEdit/applyChange），
- * width/height 属性还留着拖之前的旧值——照属性输出的话，图是缩放后的、宽高却是旧的，
- * 到了对方网站上就按旧尺寸显示，跟编辑器里看到的对不上。没有 style 时才用属性
- */
-function imageSize(el: Element): string {
-  const style = (el as HTMLElement).style;
-  return ["width", "height"]
-    .map((name) => {
-      const css = style?.[name as "width"] ?? "";
-      const value = css.endsWith("px") ? css.slice(0, -2) : el.getAttribute(name);
-      return value ? ` ${name}="${value}"` : "";
-    })
-    .join("");
-}
-
-/**
- * 图片：默认 ![alt](src)；imageAsHtml 时输出原始 <img>，并把显示出来的 width/height 带上——
- * Markdown 的图片语法没法带尺寸，写成 ![alt](src) 那边就按原图大小显示了，排版时缩过的图全被放大。
- * alt 里的方括号会撑破 Markdown 语法，去掉（输出 <img> 时不用管，但统一清掉没坏处）
- */
+/** 图片：![alt](src)；alt 里的方括号会撑破 Markdown 语法，去掉 */
 function renderImage(el: Element): string {
   const src = el.getAttribute("src") ?? "";
   const alt = (el.getAttribute("alt") ?? "").replace(/[[\]]/g, "");
-  if (!imageAsHtml) return `![${alt}](${src})`;
-  return `<img src="${src}"${imageSize(el)}${alt ? ` alt="${alt}"` : ""}>`;
+  return `![${alt}](${src})`;
 }
 
 /** 链接：地址里有空格或括号时套尖括号，否则 Markdown 会把后半截当成标题文字 */
@@ -248,21 +223,9 @@ function hasBlockChild(el: Element): boolean {
   return Array.from(el.children).some((child) => BLOCK_TAGS.has(child.tagName));
 }
 
-/**
- * @param options.imageAsHtml 图片输出成原始 <img>（带 width/height）而不是 ![alt](src)。
- *   博客园、掘金、InfoQ 这几条链路传：它们的 Markdown 编辑器认内联 HTML，
- *   而 ![alt](src) 会把编辑器里调好的尺寸丢掉
- */
-export default function toMarkdown(html: string, options: { imageAsHtml?: boolean } = {}): string {
-  // 图片形态由 renderImage 走这条模块级开关读：它在行内递归里，层层传参太啰嗦；
-  // 转换是同步的，用完即复位，不会串到下一次调用
-  imageAsHtml = options.imageAsHtml === true;
-  try {
-    const doc = new DOMParser().parseFromString(html, "text/html");
-    const lines = renderBlocks(doc.body).map((line) => line.trimEnd());
-    // 块间空一行；连续空行压成一个（空段落与引用里的空行会攒出多余空行）
-    return lines.join("\n\n").replace(/\n{3,}/g, "\n\n").trim() + "\n";
-  } finally {
-    imageAsHtml = false;
-  }
+export default function toMarkdown(html: string): string {
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  const lines = renderBlocks(doc.body).map((line) => line.trimEnd());
+  // 块间空一行；连续空行压成一个（空段落与引用里的空行会攒出多余空行）
+  return lines.join("\n\n").replace(/\n{3,}/g, "\n\n").trim() + "\n";
 }

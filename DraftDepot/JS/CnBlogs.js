@@ -48,6 +48,19 @@ function getTitleInput() {
   return document.getElementById("post-title");
 }
 
+/**
+ * 写标题：走 input 原型上那个原生 value setter，再派一次 input 事件。
+ * 不能直接赋 value：这个输入框被页面自己的框架（Vue）接管，框架只认它监听到的 input 事件，
+ * 值改了而框架不知道，点发布时它拿到的仍是空标题，就报"请输入文章标题"。
+ * 走原型上的 setter 而不是 input.value = x，是因为框架可能把实例上的 value 覆写成了访问器，
+ * 直接赋值会进它的 setter 而绕不过去
+ */
+function setTitle(input, text) {
+  const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
+  setter.call(input, text);
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
 /** 图床上传接口：upload.cnblogs.com（与页面所在的 i.cnblogs.com 是 same-site，靠它自己的 CORS 头放行） */
 const UPLOAD_IMAGE_URL = "https://upload.cnblogs.com/v2/images/cors-upload";
 
@@ -142,8 +155,7 @@ const timer = setInterval(async () => {
 
   // 灌标题正文这一整段都盖着遮罩：那期间页面是半截的，别让人插手（见 Msg.js）
   await DDMsg.withMask(async () => {
-    // 标题是普通 input，直接写 value 就行：不像知乎那样是 React 受控组件，不必走 setter + 派事件
-    if (article.title) titleInput.value = article.title;
+    if (article.title) setTitle(titleInput, article.title);
     // 字段叫 html，这一趟装的其实是 Markdown（见文件头）：图先传上去换成图床地址再灌进去
     // （见文件头说明），CodeMirror 自己的 setValue 会顺带刷新预览
     if (article.html) cm.setValue(await uploadImages(article.html));

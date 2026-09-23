@@ -4,14 +4,7 @@
 #include "Window.h"
 #include "Db/Db.h"
 
-// gdiplus.h 自己不引入 windows.h，必须排在 Env.h 之后
-#include <gdiplus.h>
-
 std::unique_ptr<Env> env;
-Env::~Env()
-{
-    Gdiplus::GdiplusShutdown(gdiplusToken);
-}
 void Env::init()
 {
     Env::initDispatcherQueueCtrl();
@@ -19,8 +12,6 @@ void Env::init()
 	env->checkRuntimeVersion();
     env->initDataPath();
     Db::init();
-    // 必须在任何 GDI+ 操作之前：site 窗口拿到网页 favicon 后要用 GDI+ 把 PNG 流转成 HICON
-    env->initGdiplus();
     env->initWebViewEnv();
 }
 
@@ -115,12 +106,6 @@ void Env::initDataPath()
         MessageBox(nullptr, msg.c_str(), L"系统提示", MB_OK);
         ExitProcess(-1);
     }
-}
-
-void Env::initGdiplus()
-{
-    Gdiplus::GdiplusStartupInput gdiplusStartupInput;
-    Gdiplus::GdiplusStartup(&gdiplusToken, &gdiplusStartupInput, NULL);
 }
 
 void Env::initWebViewEnv()

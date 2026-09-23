@@ -2,6 +2,7 @@
 #include <dwmapi.h>
 #include "Window.h"
 #include "Page.h"
+#include "Util.h"
 
 std::unordered_map<HWND, std::unique_ptr<Window>> windows;
 // 见 Window.h 的说明：unique_ptr<Page> 的析构要实例化在 Page 完整可见的本文件
@@ -42,8 +43,12 @@ void Window::createWin()
     wcex.cbClsExtra = 0;
     wcex.cbWndExtra = 0;
     wcex.hInstance = GetModuleHandle(nullptr);
-    wcex.hIcon = LoadIcon(wcex.hInstance, (LPCTSTR)IDI_WINLOGO);
-    wcex.hIconSm = LoadIcon(wcex.hInstance, (LPCTSTR)IDI_WINLOGO);
+    // 与 site 窗口同一个 logo：标题栏左侧挂小图标、任务栏与 Alt+Tab 挂大图标，
+    // 都按系统各自的图标尺寸从 ico 里取帧（ico 有多帧时才挑得到清晰的那一帧）
+    wcex.hIcon = (HICON)LoadImage(wcex.hInstance, MAKEINTRESOURCE(Util::appIconId), IMAGE_ICON,
+        GetSystemMetrics(SM_CXICON), GetSystemMetrics(SM_CYICON), LR_DEFAULTCOLOR);
+    wcex.hIconSm = (HICON)LoadImage(wcex.hInstance, MAKEINTRESOURCE(Util::appIconId), IMAGE_ICON,
+        GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_DEFAULTCOLOR);
     wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
     wcex.hbrBackground = (HBRUSH)COLOR_WINDOW;
     wcex.lpszMenuName = nullptr;

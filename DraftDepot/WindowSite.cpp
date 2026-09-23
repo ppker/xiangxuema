@@ -92,8 +92,12 @@ void WindowSite::createWin()
 	wcex.cbClsExtra = 0;
 	wcex.cbWndExtra = 0;
 	wcex.hInstance = GetModuleHandle(nullptr);
-	wcex.hIcon = LoadIcon(wcex.hInstance, (LPCTSTR)IDI_WINLOGO);
-	wcex.hIconSm = LoadIcon(wcex.hInstance, (LPCTSTR)IDI_WINLOGO);
+	// 标题栏左侧挂小图标、任务栏与 Alt+Tab 挂大图标，都用资源里那个 logo。
+	// 用 LoadImage 按系统各自的图标尺寸取，ico 里有多帧时才能挑到最清晰的一帧（LoadIcon 只给默认尺寸）
+	wcex.hIcon = (HICON)LoadImage(wcex.hInstance, MAKEINTRESOURCE(Util::appIconId), IMAGE_ICON,
+		GetSystemMetrics(SM_CXICON), GetSystemMetrics(SM_CYICON), LR_DEFAULTCOLOR);
+	wcex.hIconSm = (HICON)LoadImage(wcex.hInstance, MAKEINTRESOURCE(Util::appIconId), IMAGE_ICON,
+		GetSystemMetrics(SM_CXSMICON), GetSystemMetrics(SM_CYSMICON), LR_DEFAULTCOLOR);
 	wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
 	wcex.hbrBackground = (HBRUSH)COLOR_WINDOW;
 	wcex.lpszMenuName = nullptr;

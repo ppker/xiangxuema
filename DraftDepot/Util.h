@@ -22,4 +22,7 @@ public:
 	static sqlite3_int64 argNumber(const JsonObject& args, const wchar_t* key);
 	/// argNumber 的"没有这个参数"返回值。-1：所有 IPC 约定负数都不是合法 id
 	static constexpr sqlite3_int64 NO_NUMBER = -1;
+	/// 程序图标的资源 id：Resource.rc 里手写的那一行 `100 ICON`（指向 Doc\logo.ico）用的是裸数字，
+	/// 没有符号名，所以在这里记一个。主窗口与 site 窗口的标题栏、任务栏都挂它（见各自的 createWin）
+	static constexpr int appIconId = 100;
 };

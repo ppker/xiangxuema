@@ -10,7 +10,8 @@ import { isCodeLang } from "../CodeHighlight";
  *   2. 图片 → ![alt](src)，**src 原样保留** https://app.localhost/images/<文件名>：
  *      那是本程序 WebView2 的虚拟映射，对方的服务器取不到；站点脚本（JS/OSC.js）在写作页里
  *      向 native 要一次图片目录句柄，按文件名取出文件传它的图床后再换掉地址（与知乎/CSDN 同一套；
- *      博客园那条在 JS/CnBlogs.js，是同一套的 Markdown 版）；
+ *      博客园那条在 JS/CnBlogs.js，是同一套的 Markdown 版）。
+ *      博客园例外：它要的是原始 <img>（见 imageAsHtml），Markdown 语法带不上宽高；
  *   3. 装饰性样式（文字色 / 背景色 / 字体 / 字号 / 行高 / 对齐）**一律丢掉**：Markdown 没这套语法，
  *      留着只能写成内联 HTML，而那边多半也不会认；
  *   4. 下划线与上/下标 → 保留成内联 HTML（<u> / <sup> / <sub>）：这几个在中文技术文里真会用到，
@@ -59,11 +60,23 @@ function renderCodeSpan(text: string): string {
   return fence + pad + text + pad + fence;
 }
 
-/** 图片：alt 里的方括号会撑破语法，去掉 */
+/** 图片输出成原始 <img> 吗（博客园与掘金这两条链路要，见 toMarkdown 的 options.imageAsHtml） */
+let imageAsHtml = false;
+
+/**
+ * 图片：默认 ![alt](src)；imageAsHtml 时输出原始 <img>，并把编辑器里调好的 width/height 带上——
+ * Markdown 的图片语法没法带尺寸，写成 ![alt](src) 那边就按原图大小显示了，排版时缩过的图全被放大。
+ * alt 里的方括号会撑破 Markdown 语法，去掉（输出 <img> 时不用管，但统一清掉没坏处）
+ */
 function renderImage(el: Element): string {
   const src = el.getAttribute("src") ?? "";
   const alt = (el.getAttribute("alt") ?? "").replace(/[[\]]/g, "");
-  return `![${alt}](${src})`;
+  if (!imageAsHtml) return `![${alt}](${src})`;
+  const size = ["width", "height"]
+    .filter((name) => el.hasAttribute(name))
+    .map((name) => ` ${name}="${el.getAttribute(name)}"`)
+    .join("");
+  return `<img src="${src}"${size}${alt ? ` alt="${alt}"` : ""}>`;
 }
 
 /** 链接：地址里有空格或括号时套尖括号，否则 Markdown 会把后半截当成标题文字 */
@@ -222,9 +235,21 @@ function hasBlockChild(el: Element): boolean {
   return Array.from(el.children).some((child) => BLOCK_TAGS.has(child.tagName));
 }
 
-export default function toMarkdown(html: string): string {
-  const doc = new DOMParser().parseFromString(html, "text/html");
-  const lines = renderBlocks(doc.body).map((line) => line.trimEnd());
-  // 块间空一行；连续空行压成一个（空段落与引用里的空行会攒出多余空行）
-  return lines.join("\n\n").replace(/\n{3,}/g, "\n\n").trim() + "\n";
+/**
+ * @param options.imageAsHtml 图片输出成原始 <img>（带 width/height）而不是 ![alt](src)。
+ *   博客园与掘金这两条链路传：它们的 Markdown 编辑器认内联 HTML，
+ *   而 ![alt](src) 会把编辑器里调好的尺寸丢掉
+ */
+export default function toMarkdown(html: string, options: { imageAsHtml?: boolean } = {}): string {
+  // 图片形态由 renderImage 走这条模块级开关读：它在行内递归里，层层传参太啰嗦；
+  // 转换是同步的，用完即复位，不会串到下一次调用
+  imageAsHtml = options.imageAsHtml === true;
+  try {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    const lines = renderBlocks(doc.body).map((line) => line.trimEnd());
+    // 块间空一行；连续空行压成一个（空段落与引用里的空行会攒出多余空行）
+    return lines.join("\n\n").replace(/\n{3,}/g, "\n\n").trim() + "\n";
+  } finally {
+    imageAsHtml = false;
+  }
 }

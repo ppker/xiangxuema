@@ -5,9 +5,6 @@
 #include "Util.h"
 #include <winrt/Windows.Foundation.Collections.h> // 提供 IMap::HasKey 的定义，避免 C3779
 
-// gdiplus.h 自己不引入 windows.h，必须排在 Env.h 之后
-#include <gdiplus.h>
-
 PageSite::PageSite(WindowSite* win, ComPtr<ICoreWebView2>& webview, const std::wstring& url)
 	: win{ win }, webview{ webview }, url{ url }
 {
@@ -20,12 +17,6 @@ PageSite::PageSite(WindowSite* win, ComPtr<ICoreWebView2>& webview, const std::w
 	auto titleChangedCB = Callback<ICoreWebView2DocumentTitleChangedEventHandler>(this, &PageSite::onTitleChange);
 	webview->add_DocumentTitleChanged(titleChangedCB.Get(), nullptr);
 
-	// FaviconChanged 在 ICoreWebView2_15 上，先 QueryInterface 出高版本接口再注册
-	ComPtr<ICoreWebView2_15> webview15;
-	webview.As(&webview15);
-	auto faviconChangeCB = Callback<ICoreWebView2FaviconChangedEventHandler>(this, &PageSite::onFaviconChange);
-	webview15->add_FaviconChanged(faviconChangeCB.Get(), nullptr);
-
 	// 脚本要在首屏文档创建时就跑起来，所以先注册再导航
 	injectSiteScript(webview);
 	webview->Navigate(url.c_str());
@@ -33,7 +24,6 @@ PageSite::PageSite(WindowSite* win, ComPtr<ICoreWebView2>& webview, const std::w
 
 PageSite::~PageSite()
 {
-	if (curIcon) DestroyIcon(curIcon);
 }
 
 HRESULT PageSite::onMsgReceived(ICoreWebView2* webview, ICoreWebView2WebMessageReceivedEventArgs* args)
@@ -285,28 +275,4 @@ void PageSite::injectSiteScript(ComPtr<ICoreWebView2>& webview)
 	auto script = Util::convertToWStr(scriptUtf8.c_str());
 	// 注册后每次文档创建（含首屏、跳转、iframe）都会自动执行，无需关心返回值
 	webview->AddScriptToExecuteOnDocumentCreated(script.c_str(), nullptr);
-}
-
-HRESULT PageSite::onFaviconChange(ICoreWebView2* sender, IUnknown* args)
-{
-	ComPtr<ICoreWebView2_15> webview15;
-	webview.As(&webview15);
-	// 要 PNG：ICO 只能由网页显式提供，PNG 覆盖面最广
-	webview15->GetFavicon(COREWEBVIEW2_FAVICON_IMAGE_FORMAT_PNG,
-		Callback<ICoreWebView2GetFaviconCompletedHandler>(
-			[this](HRESULT errorCode, IStream* iconStream)
-			{
-				if (FAILED(errorCode)) return S_OK;
-				Gdiplus::Bitmap iconBitmap(iconStream);
-				HICON icon;
-				auto status = iconBitmap.GetHICON(&icon);
-				if (status != Gdiplus::Status::Ok) return S_OK;
-				// ICON_SMALL 用于标题栏，ICON_BIG 用于任务栏与 Alt+Tab
-				SendMessage(win->hwnd, WM_SETICON, ICON_SMALL, (LPARAM)icon);
-				SendMessage(win->hwnd, WM_SETICON, ICON_BIG, (LPARAM)icon);
-				if (curIcon) DestroyIcon(curIcon);
-				curIcon = icon;
-				return S_OK;
-			}).Get());
-	return S_OK;
 }
